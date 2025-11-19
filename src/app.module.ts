@@ -4,9 +4,20 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { QdrantService } from "./core/services/qdrant.service";
 import { AiProcessingService } from "./core/services/ai-processing.service";
+import { BullModule } from "@nestjs/bullmq";
+import { IngestionModule } from "./ingestion/ingestion.module";
 
 @Module({
-	imports: [ConfigModule.forRoot({ isGlobal: true })],
+	imports: [
+		ConfigModule.forRoot({ isGlobal: true }),
+		BullModule.forRoot({
+			connection: {
+				host: process.env.REDIS_HOST || "localhost",
+				port: 6379,
+			},
+		}),
+		IngestionModule,
+	],
 	controllers: [AppController],
 	providers: [AppService, AiProcessingService, QdrantService],
 })
