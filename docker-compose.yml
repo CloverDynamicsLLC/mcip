@@ -1,16 +1,16 @@
 version: '3.8'
 services:
-  molfar-core:
-    build: .
-    ports:
-      - "8080:8080"
-    environment:
-      - REDIS_HOST=redis
-      - QDRANT_HOST=qdrant
-      - OPENAI_API_KEY=${OPENAI_API_KEY}
-    depends_on:
-      - redis
-      - qdrant
+#  molfar-core:
+#    build: .
+#    ports:
+#      - "8080:8080"
+#    environment:
+#      - REDIS_HOST=redis
+#      - QDRANT_HOST=qdrant
+#      - OPENAI_API_KEY=${OPENAI_API_KEY}
+#    depends_on:
+#      - redis
+#      - qdrant
 
   qdrant:
     image: qdrant/qdrant:latest
