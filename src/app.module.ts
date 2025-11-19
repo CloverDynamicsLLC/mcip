@@ -6,6 +6,7 @@ import { QdrantService } from "./core/services/qdrant.service";
 import { AiProcessingService } from "./core/services/ai-processing.service";
 import { BullModule } from "@nestjs/bullmq";
 import { IngestionModule } from "./ingestion/ingestion.module";
+import { SearchController } from './api/search.controller';
 
 @Module({
 	imports: [
@@ -18,7 +19,7 @@ import { IngestionModule } from "./ingestion/ingestion.module";
 		}),
 		IngestionModule,
 	],
-	controllers: [AppController],
+	controllers: [AppController, SearchController],
 	providers: [AppService, AiProcessingService, QdrantService],
 })
 export class AppModule {}

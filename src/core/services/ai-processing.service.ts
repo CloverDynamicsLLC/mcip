@@ -35,6 +35,19 @@ export class AiProcessingService {
 		};
 	}
 
+  /**
+   * Converts string into a vector.
+   * We use the same model as ingestion to ensure they match mathematically.
+   */
+  async embedQuery(query: string): Promise<number[]> {
+    const response = await this.openai.embeddings.create({
+      model: 'text-embedding-3-small',
+      input: query,
+      encoding_format: 'float',
+    });
+    return response.data[0].embedding;
+  }
+
 	/**
 	 * STEP 1: Normalization
 	 * Uses GPT-4o-mini to force raw data into our Zod Schema.
@@ -90,12 +103,6 @@ export class AiProcessingService {
       Attributes: ${product.attributes.map((a) => `${a.name}: ${a.value}`).join(", ")}
     `.trim();
 
-		const response = await this.openai.embeddings.create({
-			model: "text-embedding-3-small", // Efficient embedding model
-			input: textToEmbed,
-			encoding_format: "float",
-		});
-
-		return response.data[0].embedding;
+		return this.embedQuery(textToEmbed);
 	}
 }
