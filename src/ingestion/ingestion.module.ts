@@ -4,6 +4,7 @@ import { QdrantService } from "../core/services/qdrant.service";
 import { AiProcessingService } from "../core/services/ai-processing.service";
 import { IngestionController } from "./ingestion.controller";
 import { IngestionProcessor } from "./ingestion.processor";
+import { UrlImportService } from "./url-import.service";
 
 @Module({
 	imports: [
@@ -12,6 +13,6 @@ import { IngestionProcessor } from "./ingestion.processor";
 		}),
 	],
 	controllers: [IngestionController],
-	providers: [IngestionProcessor, QdrantService, AiProcessingService],
+	providers: [IngestionProcessor, QdrantService, AiProcessingService, UrlImportService],
 })
-export class IngestionModule {}
+export class IngestionModule { }

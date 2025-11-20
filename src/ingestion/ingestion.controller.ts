@@ -1,10 +1,14 @@
 import { Body, Controller, HttpCode, HttpStatus, Post } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
+import { UrlImportService } from "./url-import.service";
 
 @Controller("ingest")
 export class IngestionController {
-	constructor(@InjectQueue("product-ingestion") private ingestionQueue: Queue) {}
+	constructor(
+		@InjectQueue("product-ingestion") private ingestionQueue: Queue,
+		private readonly urlImportService: UrlImportService,
+	) { }
 
 	/**
 	 * Endpoint: POST /ingest
@@ -39,5 +43,10 @@ export class IngestionController {
 			count: jobs.length,
 			message: "Processing started in background",
 		};
+	}
+
+	@Post('trigger-url')
+	async triggerImport(@Body() body: { url: string; token?: string }) {
+		return this.urlImportService.importFromUrl(body.url, body.token);
 	}
 }
