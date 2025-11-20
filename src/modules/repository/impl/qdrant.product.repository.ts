@@ -61,10 +61,11 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		this.logger.log(`Indexed product: ${product.title}`);
 	}
 
-	async search(queryVector: number[], filter?: any, limit = 10): Promise<SearchResult[]> {
+	async search(queryVector: number[], filter?: any, limit = 10, offset = 0): Promise<SearchResult[]> {
 		const searchResult = await this.client.search(this.COLLECTION_NAME, {
 			vector: queryVector,
 			limit: limit,
+			offset: offset,
 			filter: filter,
 			with_payload: true,
 		});
