@@ -29,13 +29,11 @@ class IngestionProcessor extends WorkerHost {
 			// 1. Normalization (LLM or Vendure strategy)
 			const cleanProduct = await this.productMapper.map(rawProduct);
 
-			this.logger.log(`[Job ${job.id}] Normalized product: \n${JSON.stringify(cleanProduct, null, 2)}`);
-
 			// 2. Vectorization
-			// const vector = await this.aiService.generateEmbedding(cleanProduct);
+			const vector = await this.aiService.generateEmbedding(cleanProduct);
 
 			// 3. Database Upsert (Takes ~50ms)
-			// await this.qdrantService.upsertProduct(cleanProduct, vector);
+			await this.qdrantService.upsertProduct(cleanProduct, vector);
 
 			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanProduct.title}`);
 			return { success: true, id: cleanProduct.externalId };
