@@ -2,7 +2,7 @@ import { Injectable, Logger } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { OpenAI } from "openai";
 import { zodResponseFormat } from "openai/helpers/zod";
-import { UnifiedProduct, UnifiedProductSchema } from "../../../core/domain/product.schema";
+import { UnifiedProduct, UnifiedProductSchema } from "../../../../core/domain/product.schema";
 import { ProductMapper } from "../product-mapper.interface";
 
 @Injectable()

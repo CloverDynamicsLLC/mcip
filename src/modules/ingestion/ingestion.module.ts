@@ -1,14 +1,14 @@
 import { Logger, Module } from "@nestjs/common";
 import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
-import { QdrantService } from "../core/services/qdrant.service";
-import { AiProcessingService } from "../core/services/ai-processing.service";
+import { QdrantService } from "../../core/services/qdrant.service";
+import { AiProcessingService } from "../../core/services/ai-processing.service";
 import { IngestionController } from "./ingestion.controller";
 import IngestionProcessor from "./ingestion.processor";
 import { IngestionService } from "./services/impl/ingestion.service";
 import { CustomAiMapper } from "./mapper/strategies/custom-ai.mapper";
 import { VendureMapper } from "./mapper/strategies/vendure.mapper";
-import { INGESTION_SERVICE, PRODUCT_MAPPER } from "../constants/tokens";
+import { INGESTION_SERVICE, PRODUCT_MAPPER } from "../../constants/tokens";
 
 @Module({
 	imports: [

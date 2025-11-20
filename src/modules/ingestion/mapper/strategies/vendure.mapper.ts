@@ -4,7 +4,7 @@ import {
 	ProductVariant,
 	UnifiedProduct,
 	UnifiedProductSchema,
-} from "../../../core/domain/product.schema";
+} from "../../../../core/domain/product.schema";
 import { ProductMapper } from "../product-mapper.interface";
 
 @Injectable()

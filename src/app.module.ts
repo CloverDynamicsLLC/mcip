@@ -5,7 +5,7 @@ import { AppService } from "./app.service";
 import { QdrantService } from "./core/services/qdrant.service";
 import { AiProcessingService } from "./core/services/ai-processing.service";
 import { BullModule } from "@nestjs/bullmq";
-import { IngestionModule } from "./ingestion/ingestion.module";
+import { IngestionModule } from "./modules/ingestion/ingestion.module";
 import { SearchController } from './api/search.controller';
 
 @Module({

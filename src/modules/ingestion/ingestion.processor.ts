@@ -1,10 +1,10 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { Inject, Logger } from "@nestjs/common";
-import { AiProcessingService } from "../core/services/ai-processing.service";
-import { QdrantService } from "../core/services/qdrant.service";
+import { AiProcessingService } from "../../core/services/ai-processing.service";
+import { QdrantService } from "../../core/services/qdrant.service";
 import type { ProductMapper } from "./mapper/product-mapper.interface";
-import { PRODUCT_MAPPER } from "../constants/tokens";
+import { PRODUCT_MAPPER } from "../../constants/tokens";
 
 @Processor("product-ingestion")
 class IngestionProcessor extends WorkerHost {

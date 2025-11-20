@@ -3,8 +3,8 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import axios from "axios";
 import { IIngestionService } from "../ingestion.service.interface";
-import { ImportProductsRequestDto } from "src/ingestion/dto/import-products-request.dto";
-import { ImportProductsResponseDto } from "src/ingestion/dto/import-products-response.dto";
+import { ImportProductsRequestDto } from "src/modules/ingestion/dto/import-products-request.dto";
+import { ImportProductsResponseDto } from "src/modules/ingestion/dto/import-products-response.dto";
 
 @Injectable()
 export class IngestionService implements IIngestionService {

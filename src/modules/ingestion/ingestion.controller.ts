@@ -1,7 +1,7 @@
 import { Body, Controller, Inject, Post } from "@nestjs/common";
 import type { IIngestionService } from "./services/ingestion.service.interface";
 import { ImportProductsRequestDto } from "./dto/import-products-request.dto";
-import { INGESTION_SERVICE } from "../constants/tokens";
+import { INGESTION_SERVICE } from "../../constants/tokens";
 
 @Controller("ingest")
 export class IngestionController {
