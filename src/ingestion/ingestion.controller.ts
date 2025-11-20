@@ -46,7 +46,7 @@ export class IngestionController {
 	}
 
 	@Post('trigger-url')
-	async triggerImport(@Body() body: { url: string; token?: string }) {
-		return this.urlImportService.importFromUrl(body.url, body.token);
+	async triggerImport(@Body() body: { url: string; token?: string; graphqlQuery?: string }) {
+		return this.urlImportService.importFromUrl(body.url, body.token, body.graphqlQuery);
 	}
 }

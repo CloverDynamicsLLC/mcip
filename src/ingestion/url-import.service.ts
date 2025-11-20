@@ -11,37 +11,92 @@ export class UrlImportService {
         @InjectQueue('product-ingestion') private ingestionQueue: Queue
     ) { }
 
-    async importFromUrl(url: string, apiKey?: string) {
-        this.logger.log(`Started importing from: ${url}`);
+    async importFromUrl(url: string, apiKey?: string, graphqlQuery?: string) {
+        this.logger.log(`Started importing from: ${url} ${graphqlQuery ? '(GraphQL)' : '(REST)'}`);
 
         try {
-            const response = await axios.get(url, {
-                headers: apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {},
-                timeout: 30000,
-            });
+            let rawData: any;
 
-            const data = response.data;
+            if (graphqlQuery) {
+                // GraphQL Flow
+                const response = await axios.post(url, {
+                    query: graphqlQuery
+                }, {
+                    headers: apiKey ? { 'Authorization': `Bearer ${apiKey}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' },
+                    timeout: 30000,
+                });
 
-            if (!Array.isArray(data)) {
-                // Try to find an array inside the object (e.g. { products: [...] })
-                if (data.products && Array.isArray(data.products)) {
-                    return this.processArray(data.products);
+                // Check for GraphQL errors
+                if (response.data.errors && response.data.errors.length > 0) {
+                    this.logger.warn(`GraphQL Errors reported: ${JSON.stringify(response.data.errors)}`);
                 }
-                throw new BadRequestException('API response is not an array of products');
+
+                // Standard GraphQL response has 'data' property
+                if (response.data.data) {
+                    rawData = response.data.data;
+                } else {
+                    // Fallback for non-standard or error-only responses
+                    rawData = response.data;
+                }
+            } else {
+                // REST Flow
+                const response = await axios.get(url, {
+                    headers: apiKey ? { 'Authorization': `Bearer ${apiKey}` } : {},
+                    timeout: 30000,
+                });
+                rawData = response.data;
             }
 
-            await this.processArray(data);
+            const products = this.findArray(rawData);
+
+            if (!products) {
+                throw new BadRequestException('API response does not contain an array of products or could not find one in the response');
+            }
+
+            await this.processArray(products);
 
             return {
                 status: 'success',
-                message: `Queued ${data.length} products from URL`,
-                count: data.length
+                message: `Queued ${products.length} products from URL`,
+                count: products.length
             };
 
         } catch (error) {
             this.logger.error(`Import failed: ${error.message}`);
             throw new BadRequestException(`Failed to fetch data: ${error.message}`);
         }
+    }
+
+    /**
+     * Recursively searches for the first array in the object.
+     * Useful for GraphQL responses where data is nested.
+     */
+    private findArray(obj: any): any[] | null {
+        if (Array.isArray(obj)) {
+            return obj;
+        }
+        
+        if (obj && typeof obj === 'object') {
+            // Prioritize known collection keys
+            if (Array.isArray(obj.products)) return obj.products;
+            if (Array.isArray(obj.items)) return obj.items;
+            if (Array.isArray(obj.nodes)) return obj.nodes;
+            if (Array.isArray(obj.edges)) {
+                 // Handle Relay-style edges { node: ... }
+                 return obj.edges.map((edge: any) => edge.node);
+            }
+
+            // Recursive search
+            for (const key of Object.keys(obj)) {
+                // Skip common metadata or error keys to avoid false positives
+                if (['errors', 'extensions', 'pageInfo', 'meta'].includes(key)) continue;
+
+                const result = this.findArray(obj[key]);
+                if (result) return result;
+            }
+        }
+        
+        return null;
     }
 
     private async processArray(products: any[]) {
