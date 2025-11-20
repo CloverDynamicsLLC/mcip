@@ -25,10 +25,12 @@ export class IngestionService implements IIngestionService {
 
 			if (graphqlQuery) {
 				// GraphQL Flow
+				const cleanQuery = graphqlQuery.replace(/\\n/g, "\n");
+
 				const response = await axios.post(
 					url,
 					{
-						query: graphqlQuery,
+						query: cleanQuery,
 					},
 					{
 						headers: apiKey
