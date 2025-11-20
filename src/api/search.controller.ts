@@ -1,12 +1,13 @@
-import { Controller, Get, Query } from "@nestjs/common";
+import { Controller, Get, Inject, Query } from "@nestjs/common";
 import { AiProcessingService } from "../core/services/ai-processing.service";
-import { QdrantService } from "../core/services/qdrant.service";
+import type { ProductRepository } from "../modules/repository/interfaces/product.repository.interface";
+import { PRODUCT_REPOSITORY } from "../constants/tokens";
 
 @Controller("search")
 export class SearchController {
 	constructor(
-		private readonly aiService: AiProcessingService,
-		private readonly qdrantService: QdrantService
+		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
+		private readonly aiService: AiProcessingService
 	) {}
 
 	@Get()
@@ -44,7 +45,7 @@ export class SearchController {
 		// 3. Execute Search
 		// Note: If query is empty, Qdrant's 'scroll' API is better, but 'search' needs a vector.
 		// For this MVP, we assume query is present.
-		const results = await this.qdrantService.search(
+		const results = await this.productRepository.search(
 			queryVector,
 			Object.keys(filterPayload).length > 0 ? filterPayload : undefined,
 			parseInt(limit)

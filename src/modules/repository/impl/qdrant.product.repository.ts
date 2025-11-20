@@ -1,12 +1,13 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { QdrantClient } from "@qdrant/js-client-rest";
-import { UnifiedProduct } from "../domain/product.schema";
 import { ConfigService } from "@nestjs/config";
+import { ProductRepository, SearchResult } from "../interfaces/product.repository.interface";
+import { UnifiedProduct } from "../../../core/domain/product.schema";
 import { generateId } from "../utils/id-generator";
 
 @Injectable()
-export class QdrantService implements OnModuleInit {
-	private readonly logger = new Logger(QdrantService.name);
+export class QdrantProductRepository implements ProductRepository, OnModuleInit {
+	private readonly logger = new Logger(QdrantProductRepository.name);
 
 	private client: QdrantClient;
 	private readonly COLLECTION_NAME = "products";
@@ -35,7 +36,6 @@ export class QdrantService implements OnModuleInit {
 			});
 
 			// OPTIONAL: Create Payload Indexes for fast filtering (filtering by price, brand, etc.)
-			// This makes "WHERE price < 100" very fast.
 			await this.client.createPayloadIndex(this.COLLECTION_NAME, {
 				field_name: "price.amount",
 				field_schema: "float",
@@ -47,11 +47,7 @@ export class QdrantService implements OnModuleInit {
 		}
 	}
 
-	/**
-	 * WRITE OPERATION
-	 * Saves the cleaned product and its vector.
-	 */
-	async upsertProduct(product: UnifiedProduct, vector: number[]) {
+	async save(product: UnifiedProduct, vector: number[]): Promise<void> {
 		await this.client.upsert(this.COLLECTION_NAME, {
 			wait: true,
 			points: [
@@ -65,31 +61,24 @@ export class QdrantService implements OnModuleInit {
 		this.logger.log(`Indexed product: ${product.title}`);
 	}
 
-	/**
-	 * READ OPERATION (Hybrid Search)
-	 * Searches by vector similarity AND applies hard filters.
-	 */
-	async search(queryVector: number[], filter?: any, limit = 10) {
+	async search(queryVector: number[], filter?: any, limit = 10): Promise<SearchResult[]> {
 		const searchResult = await this.client.search(this.COLLECTION_NAME, {
 			vector: queryVector,
 			limit: limit,
-			filter: filter, // Qdrant filter object (must be built before passing here)
+			filter: filter,
 			with_payload: true,
 		});
 
 		return searchResult.map((hit) => ({
-			score: hit.score, // How relevant (0 to 1)
+			score: hit.score,
 			product: hit.payload as unknown as UnifiedProduct,
 		}));
 	}
 
-	/**
-	 * DELETE OPERATION
-	 * If a product is removed from the shop.
-	 */
-	async deleteProduct(id: string) {
+	async delete(id: string): Promise<void> {
 		await this.client.delete(this.COLLECTION_NAME, {
 			points: [id],
 		});
 	}
 }
+

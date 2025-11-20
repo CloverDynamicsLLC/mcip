@@ -1,3 +1,5 @@
 export const INGESTION_SERVICE = Symbol("INGESTION_SERVICE");
 
 export const PRODUCT_MAPPER = Symbol("PRODUCT_MAPPER");
+
+export const PRODUCT_REPOSITORY = Symbol("PRODUCT_REPOSITORY");

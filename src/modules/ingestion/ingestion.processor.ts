@@ -2,9 +2,9 @@ import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { Inject, Logger } from "@nestjs/common";
 import { AiProcessingService } from "../../core/services/ai-processing.service";
-import { QdrantService } from "../../core/services/qdrant.service";
+import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
 import type { ProductMapper } from "./mapper/product-mapper.interface";
-import { PRODUCT_MAPPER } from "../../constants/tokens";
+import { PRODUCT_MAPPER, PRODUCT_REPOSITORY } from "../../constants/tokens";
 
 @Processor("product-ingestion")
 class IngestionProcessor extends WorkerHost {
@@ -12,8 +12,8 @@ class IngestionProcessor extends WorkerHost {
 
 	constructor(
 		@Inject(PRODUCT_MAPPER) private readonly productMapper: ProductMapper,
-		private readonly aiService: AiProcessingService,
-		private readonly qdrantService: QdrantService
+		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
+		private readonly aiService: AiProcessingService
 	) {
 		super();
 	}
@@ -33,7 +33,7 @@ class IngestionProcessor extends WorkerHost {
 			const vector = await this.aiService.generateEmbedding(cleanProduct);
 
 			// 3. Database Upsert (Takes ~50ms)
-			await this.qdrantService.upsertProduct(cleanProduct, vector);
+			await this.productRepository.save(cleanProduct, vector);
 
 			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanProduct.title}`);
 			return { success: true, id: cleanProduct.externalId };
