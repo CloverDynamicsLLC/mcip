@@ -58,7 +58,7 @@ export class QdrantService implements OnModuleInit {
 				{
 					id: generateId(product.externalId),
 					vector: vector,
-					payload: product, // We store the whole JSON so we don't need a secondary DB
+					payload: product,
 				},
 			],
 		});

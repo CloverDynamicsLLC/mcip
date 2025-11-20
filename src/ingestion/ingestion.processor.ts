@@ -1,14 +1,17 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
-import { Logger } from "@nestjs/common";
+import { Inject, Logger } from "@nestjs/common";
 import { AiProcessingService } from "../core/services/ai-processing.service";
 import { QdrantService } from "../core/services/qdrant.service";
+import type { ProductMapper } from "./mapper/product-mapper.interface";
+import { PRODUCT_MAPPER } from "../constants/tokens";
 
-@Processor("product-ingestion") // Must match the name in AppModule
-export class IngestionProcessor extends WorkerHost {
+@Processor("product-ingestion")
+class IngestionProcessor extends WorkerHost {
 	private readonly logger = new Logger(IngestionProcessor.name);
 
 	constructor(
+		@Inject(PRODUCT_MAPPER) private readonly productMapper: ProductMapper,
 		private readonly aiService: AiProcessingService,
 		private readonly qdrantService: QdrantService
 	) {
@@ -23,14 +26,19 @@ export class IngestionProcessor extends WorkerHost {
 		this.logger.log(`[Job ${job.id}] Starting processing for product...`);
 
 		try {
-			// 1. AI Normalization & Vectorization (Takes ~1-2s)
-			const processed = await this.aiService.processRawProduct(rawProduct);
+			// 1. Normalization (LLM or Vendure strategy)
+			const cleanProduct = await this.productMapper.map(rawProduct);
 
-			// 2. Database Upsert (Takes ~50ms)
-			await this.qdrantService.upsertProduct(processed.payload, processed.vector);
+			this.logger.log(`[Job ${job.id}] Normalized product: \n${JSON.stringify(cleanProduct, null, 2)}`);
 
-			this.logger.log(`[Job ${job.id}] Successfully indexed: ${processed.payload.title}`);
-			return { success: true, id: processed.payload.externalId };
+			// 2. Vectorization
+			// const vector = await this.aiService.generateEmbedding(cleanProduct);
+
+			// 3. Database Upsert (Takes ~50ms)
+			// await this.qdrantService.upsertProduct(cleanProduct, vector);
+
+			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanProduct.title}`);
+			return { success: true, id: cleanProduct.externalId };
 		} catch (error) {
 			this.logger.error(`[Job ${job.id}] FAILED: ${error.message}`);
 			// Throwing error tells BullMQ to retry (if configured) or move to "failed" list
@@ -38,3 +46,5 @@ export class IngestionProcessor extends WorkerHost {
 		}
 	}
 }
+
+export default IngestionProcessor;

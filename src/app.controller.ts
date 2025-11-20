@@ -1,24 +1,13 @@
-import { Body, Controller, Post } from "@nestjs/common";
+import { Controller, Get } from "@nestjs/common";
 import { AppService } from "./app.service";
-import { AiProcessingService } from "./core/services/ai-processing.service";
-import { QdrantService } from "./core/services/qdrant.service";
 
 @Controller()
 export class AppController {
-	constructor(
-		private readonly appService: AppService,
-		private readonly aiService: AiProcessingService,
-		private readonly qdrantService: QdrantService
-	) {}
+	constructor(private readonly appService: AppService) {}
 
-	@Post("ingest-test")
-	async testIngest(@Body() rawData: any) {
-		// 1. Clean & Vectorize
-		const processed = await this.aiService.processRawProduct(rawData);
-
-		// 2. Save
-		await this.qdrantService.upsertProduct(processed.payload, processed.vector);
-
-		return { status: "success", id: processed.payload.externalId };
+	@Get("hello")
+	async getHello() {
+		const hello = this.appService.getHello();
+		return { status: "success", message: `Hello, mate! ${hello}` };
 	}
 }
