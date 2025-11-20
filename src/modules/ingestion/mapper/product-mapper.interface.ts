@@ -1,4 +1,4 @@
-import { UnifiedProduct } from "../../../core/domain/product.schema";
+import { UnifiedProduct } from "../../../domain/product.schema";
 
 export interface ProductMapper {
 	map(raw: any): Promise<UnifiedProduct>;

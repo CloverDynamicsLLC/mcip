@@ -1,10 +1,10 @@
 import { Processor, WorkerHost } from "@nestjs/bullmq";
 import { Job } from "bullmq";
 import { Inject, Logger } from "@nestjs/common";
-import { AiProcessingService } from "../../core/services/ai-processing.service";
-import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
+import { PRODUCT_MAPPER, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../constants/tokens";
 import type { ProductMapper } from "./mapper/product-mapper.interface";
-import { PRODUCT_MAPPER, PRODUCT_REPOSITORY } from "../../constants/tokens";
+import type { VectorizationService } from "../vectorization/services/vectorization.service.interface";
+import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
 
 @Processor("product-ingestion")
 class IngestionProcessor extends WorkerHost {
@@ -13,7 +13,7 @@ class IngestionProcessor extends WorkerHost {
 	constructor(
 		@Inject(PRODUCT_MAPPER) private readonly productMapper: ProductMapper,
 		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
-		private readonly aiService: AiProcessingService
+		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService
 	) {
 		super();
 	}
@@ -26,13 +26,13 @@ class IngestionProcessor extends WorkerHost {
 		this.logger.log(`[Job ${job.id}] Starting processing for product...`);
 
 		try {
-			// 1. Normalization (LLM or Vendure strategy)
+			// 1. Normalization
 			const cleanProduct = await this.productMapper.map(rawProduct);
 
 			// 2. Vectorization
-			const vector = await this.aiService.generateEmbedding(cleanProduct);
+			const vector = await this.vectorizationService.embedProduct(cleanProduct);
 
-			// 3. Database Upsert (Takes ~50ms)
+			// 3. Database Saving
 			await this.productRepository.save(cleanProduct, vector);
 
 			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanProduct.title}`);

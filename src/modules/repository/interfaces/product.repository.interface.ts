@@ -1,4 +1,4 @@
-import { UnifiedProduct } from "../../../core/domain/product.schema";
+import { UnifiedProduct } from "../../../domain/product.schema";
 
 export interface SearchResult {
 	score: number;

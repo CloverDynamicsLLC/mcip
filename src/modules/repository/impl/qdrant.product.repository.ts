@@ -2,7 +2,7 @@ import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { ConfigService } from "@nestjs/config";
 import { ProductRepository, SearchResult } from "../interfaces/product.repository.interface";
-import { UnifiedProduct } from "../../../core/domain/product.schema";
+import { UnifiedProduct } from "../../../domain/product.schema";
 import { generateId } from "../utils/id-generator";
 
 @Injectable()
