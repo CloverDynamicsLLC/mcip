@@ -10,4 +10,9 @@ export class AppController {
 		const hello = this.appService.getHello();
 		return { status: "success", message: `Hello, mate! ${hello}` };
 	}
+
+	@Get("health")
+	getHealth() {
+		return { status: "ok", timestamp: new Date().toISOString() };
+	}
 }
