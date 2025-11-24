@@ -99,7 +99,14 @@ export class IngestionService implements IIngestionService {
 				count: products.length,
 			};
 		} catch (error) {
-			this.logger.error(`Import failed: ${error.message}`);
+			if (axios.isAxiosError(error)) {
+				this.logger.error(`Import failed: ${error.message}`);
+				if (error.response) {
+					this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+				}
+			} else {
+				this.logger.error(`Import failed: ${error.message}`);
+			}
 			throw new BadRequestException(`Failed to fetch data: ${error.message}`);
 		}
 	}
