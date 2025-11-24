@@ -42,5 +42,6 @@ import { VectorizationModule } from "../vectorization/vectorization.module";
 		CustomAiMapper,
 		VendureMapper,
 	],
+	exports: [INGESTION_SERVICE],
 })
 export class IngestionModule {}

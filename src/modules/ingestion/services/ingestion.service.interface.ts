@@ -3,4 +3,5 @@ import { ImportProductsRequestDto } from "../dto/import-products-request.dto";
 
 export interface IIngestionService {
 	importProducts(request: ImportProductsRequestDto): Promise<ImportProductsResponseDto>;
+	syncFromConfig(): Promise<ImportProductsResponseDto>;
 }

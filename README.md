@@ -1,66 +1,82 @@
-# Molfar Agent
+# MCIP (Machine Customer Interaction Protocol)
 
-A NestJS-based agent for ingesting, normalizing, and searching product data using AI and Vector Search.
+A NestJS-based agent for customer interaction using AI and Vector Search. Designed to be easily deployed as a Docker container plugin.
 
 ## Features
 
 - **AI Processing**: Normalizes raw product data and generates embeddings using OpenAI.
 - **Vector Search**: Fast and semantic search capabilities powered by Qdrant.
-- **Asynchronous Ingestion**: robust queue management with BullMQ and Redis.
+- **Asynchronous Ingestion**: Robust queue management with BullMQ and Redis.
+- **Admin Sync**: Secure, configuration-driven product synchronization.
 
-## Prerequisites
+## Deployment
 
-- Node.js (v18+)
+### Prerequisites
+
 - Docker & Docker Compose
 
-## Installation & Setup
+### Quick Start
 
-1. **Install Dependencies**
-   ```bash
-   npm install
-   ```
+1. **Clone the repository** (or download `docker-compose.yml`)
+2. **Configure Environment**
+   Create a `.env` file or modify `docker-compose.yml` with your settings:
 
-2. **Start Infrastructure** (Redis & Qdrant)
-   ```bash
-   docker-compose up -d
-   ```
+    ```env
+    # Required
+    OPENAI_API_KEY=sk-your-api-key
+    SOURCE_URL=https://your-store.com/api/products
+    ADMIN_API_KEY=your-secret-admin-key
 
-3. **Configure Environment**
-   Create a `.env` file in the root directory:
-   ```env
-   OPENAI_API_KEY=your_openai_api_key_here
-   QDRANT_URL=http://localhost:6333
-   REDIS_HOST=localhost
-   PORT=8080
-   ```
+    # Optional
+    SOURCE_STRATEGY=VENDURE  # Options: VENDURE, OPENAPI (Default: VENDURE)
+    GRAPHQL_QUERY=...        # Minimized GraphQL query string (if using GraphQL)
+    PORT=8080                # Default: 8080
+    ```
 
-4. **Run Application**
-   ```bash
-   npm run start:dev
-   ```
+3. **Run with Docker Compose**
+    ```bash
+    docker-compose up -d
+    ```
 
 The API will be available at `http://localhost:8080`.
 
-## Store Manager Guide
+## Configuration
 
-To import products from an external source (e.g., a supplier's JSON feed), use the `/ingest/trigger-url` endpoint.
+| Variable          | Description                    | Default                            |
+| ----------------- | ------------------------------ | ---------------------------------- |
+| `OPENAI_API_KEY`  | Your OpenAI API Key            | **Required**                       |
+| `SOURCE_URL`      | URL to fetch products from     | `https://demo.vendure.io/shop-api` |
+| `SOURCE_STRATEGY` | Ingestion strategy             | `VENDURE`                          |
+| `ADMIN_API_KEY`   | Secret key for admin endpoints | `secret-admin-key`                 |
+| `GRAPHQL_QUERY`   | GraphQL query string           | (Empty)                            |
+| `PORT`            | Application port               | `8080`                             |
+| `REDIS_HOST`      | Redis hostname                 | `redis`                            |
+| `QDRANT_URL`      | Qdrant URL                     | `http://qdrant:6333`               |
 
-**Endpoint:** `POST /ingest/trigger-url`
+## Usage
 
-**Parameters:**
-- `url` (required): The direct link to the product JSON data.
-- `token` (optional): Bearer token if the external API requires authentication.
+### Admin Sync
 
-**Example Usage (cURL):**
+Trigger a product synchronization from the configured source.
+
+**Endpoint:** `POST /admin/sync`
+**Headers:** `x-admin-api-key: <ADMIN_API_KEY>`
+
+**Example:**
 
 ```bash
-curl -X POST http://localhost:8080/ingest/trigger-url \
-  -H "Content-Type: application/json" \
-  -d '{
-    "url": "https://supplier.com/api/products.json",
-    "token": "optional_secret_token"
-  }'
+curl -X POST http://localhost:8080/admin/sync \
+  -H "x-admin-api-key: your-secret-admin-key"
 ```
 
-**Response:**
-The system will queue the products for processing and return the number of items found.
+### Health Check
+
+Check if the service is running.
+
+**Endpoint:** `GET /health`
+
+**Example:**
+
+```bash
+curl http://localhost:8080/health
+```

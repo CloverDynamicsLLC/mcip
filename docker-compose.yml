@@ -1,6 +1,6 @@
 services:
-  mcip-agent:
-    image: mcip-agent:latest
+  mcip:
+    image: mcip:latest
     ports:
       - "8080:8080"
     environment:
@@ -8,6 +8,10 @@ services:
       - REDIS_HOST=redis
       - QDRANT_URL=http://qdrant:6333
       - OPENAI_API_KEY=${OPENAI_API_KEY:-sk-your-api-key-here}
+      - SOURCE_URL=${SOURCE_URL:-https://demo.vendure.io/shop-api}
+      - SOURCE_STRATEGY=${SOURCE_STRATEGY:-VENDURE}
+      - GRAPHQL_QUERY=${GRAPHQL_QUERY}
+      - ADMIN_API_KEY=${ADMIN_API_KEY:-secret-admin-key}
     depends_on:
       redis:
         condition: service_healthy

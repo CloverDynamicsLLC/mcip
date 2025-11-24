@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, Logger } from "@nestjs/common";
 import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
+import { ConfigService } from "@nestjs/config";
 import axios from "axios";
 import { IIngestionService } from "../ingestion.service.interface";
 import { ImportProductsRequestDto } from "src/modules/ingestion/dto/import-products-request.dto";
@@ -10,7 +11,28 @@ import { ImportProductsResponseDto } from "src/modules/ingestion/dto/import-prod
 export class IngestionService implements IIngestionService {
 	private readonly logger = new Logger(IngestionService.name);
 
-	constructor(@InjectQueue("product-ingestion") private ingestionQueue: Queue) {}
+	constructor(
+		@InjectQueue("product-ingestion") private ingestionQueue: Queue,
+		private configService: ConfigService
+	) {}
+
+	async syncFromConfig(): Promise<ImportProductsResponseDto> {
+		const url = this.configService.get<string>("SOURCE_URL");
+		const apiKey = this.configService.get<string>("SOURCE_API_KEY"); // Optional
+		const graphqlQuery = this.configService.get<string>("GRAPHQL_QUERY");
+
+		if (!url) {
+			throw new BadRequestException("SOURCE_URL environment variable is not set");
+		}
+
+		this.logger.log(`Starting sync from config: ${url}`);
+
+		return this.importProducts({
+			url,
+			apiKey,
+			graphqlQuery,
+		});
+	}
 
 	async importProducts({
 		url,

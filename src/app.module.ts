@@ -4,10 +4,10 @@ import { AppController } from "./app.controller";
 import { AppService } from "./app.service";
 import { BullModule } from "@nestjs/bullmq";
 import { IngestionModule } from "./modules/ingestion/ingestion.module";
-import { SearchController } from './modules/search/search.controller';
 import { RepositoryModule } from "./modules/repository/repository.module";
 import { VectorizationModule } from "./modules/vectorization/vectorization.module";
 import { SearchModule } from './modules/search/search.module';
+import { AdminModule } from "./modules/admin/admin.module";
 
 @Module({
 	imports: [
@@ -21,7 +21,9 @@ import { SearchModule } from './modules/search/search.module';
 		IngestionModule,
 		RepositoryModule,
 		VectorizationModule,
-    SearchModule
+		VectorizationModule,
+		SearchModule,
+		AdminModule
 	],
 	controllers: [AppController],
 	providers: [AppService],
