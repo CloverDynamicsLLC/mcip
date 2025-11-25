@@ -10,3 +10,4 @@ export class SearchResponseDto {
 	items: (UnifiedProduct & { score: number })[];
 }
 
+
