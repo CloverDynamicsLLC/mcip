@@ -27,16 +27,16 @@ class IngestionProcessor extends WorkerHost {
 
 		try {
 			// 1. Normalization
-			const cleanProduct = await this.productMapper.map(rawProduct);
+			const cleanedProduct = await this.productMapper.map(rawProduct);
 
 			// 2. Vectorization
-			const vector = await this.vectorizationService.embedProduct(cleanProduct);
+			const vector = await this.vectorizationService.embedProduct(cleanedProduct);
 
 			// 3. Database Saving
-			await this.productRepository.save(cleanProduct, vector);
+			await this.productRepository.save(cleanedProduct, vector);
 
-			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanProduct.title}`);
-			return { success: true, id: cleanProduct.externalId };
+			this.logger.log(`[Job ${job.id}] Successfully indexed: ${cleanedProduct.title}`);
+			return { success: true, id: cleanedProduct.externalId };
 		} catch (error) {
 			this.logger.error(`[Job ${job.id}] FAILED: ${error.message}`);
 			// Throwing error tells BullMQ to retry (if configured) or move to "failed" list

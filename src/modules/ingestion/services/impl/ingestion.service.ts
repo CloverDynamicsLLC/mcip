@@ -3,13 +3,13 @@ import { InjectQueue } from "@nestjs/bullmq";
 import { Queue } from "bullmq";
 import { ConfigService } from "@nestjs/config";
 import axios from "axios";
-import { IIngestionService } from "../ingestion.service.interface";
 import { ImportProductsRequestDto } from "src/modules/ingestion/dto/import-products-request.dto";
 import { ImportProductsResponseDto } from "src/modules/ingestion/dto/import-products-response.dto";
+import { IngestionService } from "../ingestion.service.interface";
 
 @Injectable()
-export class IngestionService implements IIngestionService {
-	private readonly logger = new Logger(IngestionService.name);
+export class IngestionServiceImpl implements IngestionService {
+	private readonly logger = new Logger(IngestionServiceImpl.name);
 
 	constructor(
 		@InjectQueue("product-ingestion") private ingestionQueue: Queue,
@@ -140,7 +140,6 @@ export class IngestionService implements IIngestionService {
 	}
 
 	private async processArray(products: any[]) {
-		// Prepare jobs for BullMQ
 		const jobs = products.map((product) => ({
 			name: "process-product",
 			data: product,

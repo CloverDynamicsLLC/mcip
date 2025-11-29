@@ -3,12 +3,12 @@ import { BullModule } from "@nestjs/bullmq";
 import { ConfigService } from "@nestjs/config";
 import { IngestionController } from "./ingestion.controller";
 import IngestionProcessor from "./ingestion.processor";
-import { IngestionService } from "./services/impl/ingestion.service";
 import { CustomAiMapper } from "./mapper/strategies/custom-ai.mapper";
 import { VendureMapper } from "./mapper/strategies/vendure.mapper";
 import { INGESTION_SERVICE, PRODUCT_MAPPER } from "../../constants/tokens";
 import { RepositoryModule } from "../repository/repository.module";
 import { VectorizationModule } from "../vectorization/vectorization.module";
+import { IngestionServiceImpl } from "./services/impl/ingestion.service";
 
 @Module({
 	imports: [
@@ -22,7 +22,7 @@ import { VectorizationModule } from "../vectorization/vectorization.module";
 	providers: [
 		{
 			provide: INGESTION_SERVICE,
-			useClass: IngestionService,
+			useClass: IngestionServiceImpl,
 		},
 		{
 			provide: PRODUCT_MAPPER,
