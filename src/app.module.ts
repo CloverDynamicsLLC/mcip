@@ -15,7 +15,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 		BullModule.forRoot({
 			connection: {
 				host: process.env.REDIS_HOST || "localhost",
-				port: 6379,
+				port: Number(process.env.REDIS_PORT ?? 6379),
 			},
 		}),
 		IngestionModule,

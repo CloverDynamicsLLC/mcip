@@ -5,14 +5,8 @@ import { AppService } from "./app.service";
 export class AppController {
 	constructor(private readonly appService: AppService) {}
 
-	@Get("hello")
-	async getHello() {
-		const hello = this.appService.getHello();
-		return { status: "success", message: `Hello, mate! ${hello}` };
-	}
-
 	@Get("health")
 	getHealth() {
-		return { status: "ok", timestamp: new Date().toISOString() };
+		return this.appService.getHealth();
 	}
 }
