@@ -1,4 +1,5 @@
 import { Injectable, Logger } from "@nestjs/common";
+import { ConfigService } from "@nestjs/config";
 import {
 	CurrencyEnum,
 	ProductVariant,
@@ -11,6 +12,8 @@ import { VendureProduct } from "./types";
 @Injectable()
 export class VendureMapper implements ProductMapper {
 	private readonly logger = new Logger(VendureMapper.name);
+
+	constructor(private readonly configService: ConfigService) {}
 
 	async map(raw: any): Promise<UnifiedProduct> {
 		// 1. Validation & Casting
@@ -186,24 +189,44 @@ export class VendureMapper implements ProductMapper {
 	}
 
 	private extractImage(product: VendureProduct): string {
+		let imageUrl = "";
+
 		// 1. Try Featured Asset Preview
-		if (product.featuredAsset?.preview) return product.featuredAsset.preview;
-		if (product.featuredAsset?.source) return product.featuredAsset.source;
+		if (product.featuredAsset?.preview) imageUrl = product.featuredAsset.preview;
+		else if (product.featuredAsset?.source) imageUrl = product.featuredAsset.source;
 
 		// 2. Try Assets Array
-		if (Array.isArray(product.assets) && product.assets.length > 0) {
-			return product.assets[0].preview || product.assets[0].source;
+		else if (Array.isArray(product.assets) && product.assets.length > 0) {
+			imageUrl = product.assets[0].preview || product.assets[0].source;
 		}
 
 		// 3. Try Variant Assets
-		if (Array.isArray(product.variants) && product.variants.length > 0) {
+		else if (Array.isArray(product.variants) && product.variants.length > 0) {
 			const v = product.variants[0];
 			if (v.assets && v.assets.length > 0) {
-				return v.assets[0].preview || v.assets[0].source;
+				imageUrl = v.assets[0].preview || v.assets[0].source;
 			}
 		}
 
-		return "";
+		return this.replaceBaseUrl(imageUrl);
+	}
+
+	private replaceBaseUrl(url: string): string {
+		if (!url) return "";
+
+		const internalUrl = this.configService.get<string>("VENDURE_INTERNAL_URL", "http://store-alpha-backend:3000");
+		const apiUrl = this.configService.get<string>("VENDURE_API_URL", "");
+		
+		if (!apiUrl) return url;
+
+		// Derive public base URL from API URL (remove /shop-api or /admin-api suffix if present, or just use as is if it's the root)
+		const publicBaseUrl = apiUrl.replace(/\/shop-api\/?$/, "").replace(/\/admin-api\/?$/, "");
+
+		if (url.startsWith(internalUrl)) {
+			return url.replace(internalUrl, publicBaseUrl);
+		}
+
+		return url;
 	}
 
 	private normalizeCurrency(code: string): "UAH" | "USD" | "EUR" {
