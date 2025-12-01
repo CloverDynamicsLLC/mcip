@@ -32,9 +32,10 @@ export class VendureMapper implements ProductMapper {
 		const mainImage = this.extractImage(vendureProduct);
 
 		// 3. Construct the Unified Object
+		const storefrontUrl = this.configService.get<string>("STOREFRONT_URL", "");
 		const product: UnifiedProduct = {
 			externalId: String(vendureProduct.id),
-			url: vendureProduct.slug ? `/product/${vendureProduct.slug}` : "",
+			url: vendureProduct.slug ? `${storefrontUrl}/products/${vendureProduct.slug}` : "",
 			title: vendureProduct.name || "Untitled Product",
 			description: this.stripHtml(vendureProduct.description || ""),
 			category: category,
