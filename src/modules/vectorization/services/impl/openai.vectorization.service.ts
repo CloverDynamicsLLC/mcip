@@ -1,4 +1,4 @@
-import { Injectable, Logger } from "@nestjs/common";
+import { Injectable } from "@nestjs/common";
 import { ConfigService } from "@nestjs/config";
 import { OpenAI } from "openai";
 import { VectorizationService } from "../vectorization.service.interface";
@@ -6,7 +6,6 @@ import { UnifiedProduct } from "../../../../domain/product.schema";
 
 @Injectable()
 export class OpenAiVectorizationService implements VectorizationService {
-	private readonly logger = new Logger(OpenAiVectorizationService.name);
 	private openai: OpenAI;
 
 	constructor(private configService: ConfigService) {
@@ -37,8 +36,6 @@ export class OpenAiVectorizationService implements VectorizationService {
 		// We prioritize fields that users actually search for.
 		const textToEmbed = `
       Title: ${product.title}
-      Brand: ${product.brand}
-      Category: ${product.category}
       Description: ${product.description}
       Keywords: ${product.keywords.join(", ")}
       Attributes: ${product.attributes.map((a) => `${a.name}: ${a.value}`).join(", ")}

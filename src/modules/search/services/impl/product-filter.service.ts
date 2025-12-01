@@ -36,16 +36,13 @@ export class ProductFilterServiceImpl implements ProductFilterService {
 			const productData = products.map((result) => ({
 				externalId: result.product.externalId,
 				title: result.product.title,
-				brand: result.product.brand,
-				price: result.product.price,
-				category: result.product.category,
 				description: result.product.description,
+				price: result.product.price,
 				attributes: result.product.attributes,
 			}));
 
 			const systemPrompt = `You are a product filtering assistant. Your job is to analyze the user's query and filter products based on STRICT requirements like:
 - Price thresholds (e.g., "above $1000", "under 500 UAH", "between 200-300 EUR")
-- Specific brands (e.g., "Lenovo", "Apple", "Samsung")
 - Specific attributes (e.g., "with 16GB RAM", "gaming laptop")
 - Availability requirements
 
