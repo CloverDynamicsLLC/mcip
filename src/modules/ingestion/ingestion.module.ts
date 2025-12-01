@@ -4,7 +4,7 @@ import { ConfigService } from "@nestjs/config";
 import { IngestionController } from "./ingestion.controller";
 import IngestionProcessor from "./ingestion.processor";
 import { CustomAiMapper } from "./mapper/strategies/custom-ai.mapper";
-import { VendureMapper } from "./mapper/strategies/vendure.mapper";
+import { VendureMapper } from "./mapper/strategies/vendure/vendure.mapper";
 import { INGESTION_SERVICE, PRODUCT_MAPPER } from "../../constants/tokens";
 import { RepositoryModule } from "../repository/repository.module";
 import { VectorizationModule } from "../vectorization/vectorization.module";
