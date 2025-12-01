@@ -6,6 +6,7 @@ export class SearchResponseDto {
 		take: number;
 		skip: number;
 		q?: string;
+		filteringStatus?: "AI_FILTERED" | "RAG_ONLY";
 	};
 	items: (UnifiedProduct & { score: number })[];
 }
