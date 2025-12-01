@@ -114,17 +114,13 @@ export class VendureMapper implements ProductMapper {
 		// Source 1: Facet Values (Global Attributes like "Brand", "Color")
 		if (Array.isArray(product.facetValues)) {
 			product.facetValues.forEach((fv) => {
-				const facetName = fv.facet?.name;
+				let facetName = fv.facet?.name;
 				const value = fv.name;
 
-				// Skip if it looks like a Brand (handled separately) or Category
-				if (!facetName || facetName.toLowerCase() === "brand" || facetName.toLowerCase() === "category") return;
-
-				// Create a unique key to prevent duplicates
-				const key = `${facetName}:${value}`;
+				const key = `${facetName || "Feature"}:${value}`;
 				if (!seenValues.has(key)) {
 					attributes.push({
-						name: facetName,
+						name: facetName || "Feature",
 						value: value,
 					});
 					seenValues.add(key);
