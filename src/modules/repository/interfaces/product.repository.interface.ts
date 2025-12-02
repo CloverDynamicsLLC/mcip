@@ -14,7 +14,7 @@ export interface ProductRepository {
 	/**
 	 * Searches by vector similarity AND applies filters.
 	 */
-	search(queryVector: number[], filter?: any, limit?: number, offset?: number): Promise<SearchResult[]>;
+	search(queryVector: number[], limit?: number, offset?: number): Promise<SearchResult[]>;
 
 	/**
 	 * Deletes a product by ID.
