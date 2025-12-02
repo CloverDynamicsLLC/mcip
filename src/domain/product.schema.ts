@@ -49,10 +49,6 @@ export const UnifiedProductSchema = z.object({
 	title: z.string().min(3).describe("Clean product title, no marketing caps lock"),
 	description: z.string().describe("Clear text description, HTML tags removed"),
 
-	// --- Classification ---
-	category: z.string().describe('Main category (e.g. "Electronics > Smartphones")'),
-	brand: z.string().describe('Brand name normalized (e.g. "Apple")'),
-
 	// --- Commercial Data ---
 	price: PriceSchema.describe("Base price of the product"),
 
