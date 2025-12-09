@@ -1,9 +1,12 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { type ProductRepository, SearchResult } from "src/modules/repository/interfaces/product.repository.interface";
 import { SearchService } from "../search.service.interface";
-import { PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../../../constants/tokens";
+import { FEATURE_EXTRACTION_SERVICE, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../../../constants/tokens";
 import type { VectorizationService } from "../../../vectorization/services/vectorization.service.interface";
+import type { FeatureExtractionService } from "../feature-extraction.service.interface";
 import { SearchRequestDto } from "../../dto/search-request.dto";
+import { FilteringStatus } from "../../dto/search-response.dto";
+import { SearchServiceResult } from "../../interfaces/search-service-result.interface";
 
 @Injectable()
 export class SearchServiceImpl implements SearchService {
@@ -11,30 +14,85 @@ export class SearchServiceImpl implements SearchService {
 
 	constructor(
 		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
-		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService
+		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService,
+		@Inject(FEATURE_EXTRACTION_SERVICE) private readonly featureExtractionService: FeatureExtractionService
 	) {}
 
-	async search({ q, take, skip }: SearchRequestDto): Promise<SearchResult[]> {
+	async search({ q, take, skip }: SearchRequestDto): Promise<SearchServiceResult> {
 		this.logger.log(`Searching for: ${q}`);
 
 		if (!q) {
 			this.logger.warn("No query provided, returning empty result");
-			return [];
+			return {
+				results: [],
+				filteringStatus: FilteringStatus.RAG_ONLY,
+			};
 		}
 
-		// 1. Embed query into vector space
-		const queryVector: number[] = await this.vectorizationService.embedString(q);
+		// 0. Get available facets (brands, categories) for LLM context
+		const facets = await this.productRepository.getFacets();
 
-		// 2. Search in RAG index (using OpenAI's Embeddings API)
-		const ragResults = await this.productRepository.search(queryVector, take, skip);
+		// 1. Extract filters from query
+		const extracted = await this.featureExtractionService.extractFilters(q, facets.brands, facets.categories);
 
-		// 3. If no RAG results, return empty
-		if (ragResults.length === 0) {
-			this.logger.log("No RAG results found, returning empty result");
-			return [];
+		const hasFilters =
+			extracted.brand ||
+			extracted.category ||
+			extracted.priceMin !== undefined ||
+			extracted.priceMax !== undefined;
+		const cleanQuery = extracted.searchQuery;
+
+		this.logger.log(`Extracted filters: ${JSON.stringify(extracted)}`);
+
+		// 2. Embed query into vector space (use a clean query if filters exist, otherwise original)
+		const queryToEmbed = hasFilters && cleanQuery ? cleanQuery : q;
+		const queryVector: number[] = await this.vectorizationService.embedString(queryToEmbed);
+
+		let results: SearchResult[];
+		let filteringStatus: FilteringStatus = FilteringStatus.RAG_ONLY;
+
+		// 3. Hybrid Search
+		if (hasFilters) {
+			this.logger.log(`Performing Hybrid Search with filters...`);
+			results = await this.productRepository.hybridSearch(
+				queryVector,
+				{
+					brand: extracted.brand,
+					category: extracted.category,
+					priceMin: extracted.priceMin,
+					priceMax: extracted.priceMax,
+				},
+				take,
+				skip
+			);
+			filteringStatus = FilteringStatus.AI_FILTERED;
+		} else {
+			// 4. Standard RAG Search
+			this.logger.log(`Performing Standard RAG Search...`);
+			results = await this.productRepository.search(queryVector, take, skip);
 		}
 
-		this.logger.log(`Returning ${ragResults.length} RAG results`);
-		return ragResults;
+		if (results.length === 0) {
+			this.logger.warn("No results found");
+			return {
+				results: [],
+				filteringStatus: FilteringStatus.RAG_ONLY,
+			};
+		}
+
+		this.logger.log(`Returning ${results.length} results`);
+
+		return {
+			results,
+			filteringStatus,
+			appliedFilters: {
+				brand: extracted.brand,
+				priceRange:
+					extracted.priceMin || extracted.priceMax
+						? { min: extracted.priceMin, max: extracted.priceMax, currency: "UAH" }
+						: undefined,
+				attributes: extracted.category ? { category: extracted.category.join(", ") } : undefined,
+			},
+		};
 	}
 }

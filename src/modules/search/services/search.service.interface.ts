@@ -1,6 +1,6 @@
-import { SearchResult } from "../../repository/interfaces/product.repository.interface";
 import { SearchRequestDto } from "../dto/search-request.dto";
+import { SearchServiceResult } from "../interfaces/search-service-result.interface";
 
 export interface SearchService {
-	search(request: SearchRequestDto): Promise<SearchResult[]>;
+	search(request: SearchRequestDto): Promise<SearchServiceResult>;
 }

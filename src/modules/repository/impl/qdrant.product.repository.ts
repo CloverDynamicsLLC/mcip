@@ -49,6 +49,10 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 						field_name: "category",
 						field_schema: "keyword",
 					});
+					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+						field_name: "brand",
+						field_schema: "keyword",
+					});
 				}
 				return; // Success
 			} catch (error) {
@@ -88,6 +92,61 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 			score: hit.score,
 			product: hit.payload as unknown as UnifiedProduct,
 		}));
+	}
+
+	async hybridSearch(
+		queryVector: number[],
+		filters: { brand?: string[]; category?: string[]; priceMin?: number; priceMax?: number },
+		limit = 10,
+		offset = 0
+	): Promise<SearchResult[]> {
+		const must: any[] = [];
+
+		// Brand filter (exact match)
+		if (filters.brand?.length) {
+			must.push({ key: "brand", match: { any: filters.brand } });
+		}
+
+		// Category filter (exact match)
+		if (filters.category?.length) {
+			must.push({ key: "category", match: { any: filters.category } });
+		}
+
+		// Price range filter
+		if (filters.priceMin !== undefined || filters.priceMax !== undefined) {
+			must.push({
+				key: "price.amount",
+				range: {
+					...(filters.priceMin !== undefined && { gte: filters.priceMin }),
+					...(filters.priceMax !== undefined && { lte: filters.priceMax }),
+				},
+			});
+		}
+
+		const searchResult = await this.client.search(this.COLLECTION_NAME, {
+			vector: queryVector,
+			limit,
+			offset,
+			with_payload: true,
+			filter: must.length > 0 ? { must } : undefined,
+		});
+
+		return searchResult.map((hit) => ({
+			score: hit.score,
+			product: hit.payload as unknown as UnifiedProduct,
+		}));
+	}
+
+	async getFacets(): Promise<{ brands: string[]; categories: string[] }> {
+		const [brandsResult, categoriesResult] = await Promise.all([
+			this.client.facet(this.COLLECTION_NAME, { key: "brand", limit: 100 }),
+			this.client.facet(this.COLLECTION_NAME, { key: "category", limit: 100 }),
+		]);
+
+		return {
+			brands: brandsResult.hits.map((h) => h.value as string),
+			categories: categoriesResult.hits.map((h) => h.value as string),
+		};
 	}
 
 	async delete(id: string): Promise<void> {
