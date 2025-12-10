@@ -38,6 +38,8 @@ export class VendureMapper implements ProductMapper {
 			url: vendureProduct.slug ? `${storefrontUrl}/products/${vendureProduct.slug}` : "",
 			title: vendureProduct.name || "Untitled Product",
 			description: this.stripHtml(vendureProduct.description || ""),
+			brand: brand !== "Generic" ? brand : undefined,
+			category: category !== "Uncategorized" ? category : undefined,
 
 
 			price: {
@@ -264,23 +266,8 @@ export class VendureMapper implements ProductMapper {
 		brand: string,
 		category: string
 	): { name: string; value: string | number | boolean }[] {
-		const merged = [...existingAttributes];
-
-		// Add Brand if not present
-		if (brand && brand !== "Generic" && !merged.some((a) => a.name.toLowerCase() === "brand")) {
-			merged.push({ name: "brand", value: brand });
-		}
-
-		// Add Category if not present
-		if (
-			category &&
-			category !== "Uncategorized" &&
-			!merged.some((a) => a.name.toLowerCase() === "category")
-		) {
-			merged.push({ name: "category", value: category });
-		}
-
-		return merged;
+		// We no longer merge brand/category into attributes as they are top-level fields now
+		return [...existingAttributes];
 	}
 }
 
