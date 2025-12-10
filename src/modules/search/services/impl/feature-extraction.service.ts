@@ -27,14 +27,14 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 		const FilterSchema = z.object({
 			brand: z
 				.array(z.string())
-				.optional()
+				.nullish()
 				.describe("List of brands identified in the query. MUST be from the available list of brands."),
 			category: z
 				.array(z.string())
-				.optional()
+				.nullish()
 				.describe("List of categories identified in the query. MUST be from the available list of categories."),
-			priceMin: z.number().optional().describe("Minimum price extracted from query (e.g. 'over $100')"),
-			priceMax: z.number().optional().describe("Maximum price extracted from query (e.g. 'under $500')"),
+			priceMin: z.number().nullish().describe("Minimum price extracted from query (e.g. 'over $100')"),
+			priceMax: z.number().nullish().describe("Maximum price extracted from query (e.g. 'under $500')"),
 			searchQuery: z
 				.string()
 				.describe(
@@ -83,8 +83,8 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 			return {
 				brand: validBrands.length > 0 ? validBrands : undefined,
 				category: validCategories.length > 0 ? validCategories : undefined,
-				priceMin: result.priceMin,
-				priceMax: result.priceMax,
+				priceMin: result.priceMin ?? undefined,
+				priceMax: result.priceMax ?? undefined,
 				searchQuery: result.searchQuery || query,
 			};
 		} catch (error) {
