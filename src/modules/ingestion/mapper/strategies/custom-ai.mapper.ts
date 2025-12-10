@@ -34,6 +34,7 @@ export class CustomAiMapper implements ProductMapper {
             3. CLEAN: Remove HTML tags from descriptions.
             4. KEYWORDS: Generate 5-10 SEO keywords based on the product details.
             5. PRICE: Ensure price is a number. If currency is missing, default to UAH.
+            6. METADATA: Extract 'brand' and 'category' from the title or description if not explicitly provided.
           `,
                 },
                 {

@@ -38,14 +38,15 @@ export class VendureMapper implements ProductMapper {
 			url: vendureProduct.slug ? `${storefrontUrl}/products/${vendureProduct.slug}` : "",
 			title: vendureProduct.name || "Untitled Product",
 			description: this.stripHtml(vendureProduct.description || ""),
-
+			brand: brand !== "Generic" ? brand : undefined,
+			category: category !== "Uncategorized" ? category : undefined,
 
 			price: {
 				amount: priceData.amount,
 				currency: priceData.currency,
 			},
 			mainImage: mainImage,
-			attributes: this.mergeAttributes(attributes, brand, category),
+			attributes: attributes,
 			variants: this.extractVariants(vendureProduct, priceData.amount),
 			keywords: this.generateKeywords(vendureProduct.name, vendureProduct.description, category, brand),
 		};
@@ -138,7 +139,7 @@ export class VendureMapper implements ProductMapper {
 			const firstVariant = product.variants[0];
 			if (Array.isArray(firstVariant.options)) {
 				firstVariant.options.forEach((opt) => {
-						const name = opt.code || "Option";
+					const name = opt.code || "Option";
 					const value = opt.name;
 
 					// Simple de-duplication against existing attributes by value might be too aggressive,
@@ -175,15 +176,16 @@ export class VendureMapper implements ProductMapper {
 				(fv) => fv.facet && fv.facet.name.toLowerCase() === "category"
 			);
 			if (categoryFacets.length > 0) {
-				// Join multiple categories if present, or just take the last one (most specific)
-				// Usually hierarchical facets are returned. Let's join them.
-				return categoryFacets.map((f) => f.name).join(" > ");
+				// Extract the most specific (last) category from the hierarchy
+				// E.g., ["Business", "Laptop"] → "Laptop"
+				// This ensures clean filtering without hierarchical complexity
+				return categoryFacets[categoryFacets.length - 1].name;
 			}
 		}
 
-		// Priority 2: Collections
+		// Priority 2: Collections - take the most specific (last) collection
 		if (Array.isArray(product.collections) && product.collections.length > 0) {
-			return product.collections.map((c) => c.name).join(" > ");
+			return product.collections[product.collections.length - 1].name;
 		}
 
 		return "Uncategorized";
@@ -195,7 +197,6 @@ export class VendureMapper implements ProductMapper {
 		// 1. Try Featured Asset Preview
 		if (product.featuredAsset?.preview) imageUrl = product.featuredAsset.preview;
 		else if (product.featuredAsset?.source) imageUrl = product.featuredAsset.source;
-
 		// 2. Try Assets Array
 		else if (Array.isArray(product.assets) && product.assets.length > 0) {
 			imageUrl = product.assets[0].preview || product.assets[0].source;
@@ -217,7 +218,7 @@ export class VendureMapper implements ProductMapper {
 
 		const internalUrl = this.configService.get<string>("VENDURE_INTERNAL_URL", "http://store-alpha-backend:3000");
 		const apiUrl = this.configService.get<string>("VENDURE_API_URL", "");
-		
+
 		if (!apiUrl) return url;
 
 		// Derive public base URL from API URL (remove /shop-api or /admin-api suffix if present, or just use as is if it's the root)
@@ -258,29 +259,4 @@ export class VendureMapper implements ProductMapper {
 
 		return [...new Set(words)].slice(0, 10);
 	}
-
-	private mergeAttributes(
-		existingAttributes: { name: string; value: string | number | boolean }[],
-		brand: string,
-		category: string
-	): { name: string; value: string | number | boolean }[] {
-		const merged = [...existingAttributes];
-
-		// Add Brand if not present
-		if (brand && brand !== "Generic" && !merged.some((a) => a.name.toLowerCase() === "brand")) {
-			merged.push({ name: "brand", value: brand });
-		}
-
-		// Add Category if not present
-		if (
-			category &&
-			category !== "Uncategorized" &&
-			!merged.some((a) => a.name.toLowerCase() === "category")
-		) {
-			merged.push({ name: "category", value: category });
-		}
-
-		return merged;
-	}
 }
-

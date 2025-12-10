@@ -1,16 +1,12 @@
 import { Inject, Injectable, Logger } from "@nestjs/common";
 import { type ProductRepository, SearchResult } from "src/modules/repository/interfaces/product.repository.interface";
 import { SearchService } from "../search.service.interface";
-import { PRODUCT_FILTER_SERVICE, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../../../constants/tokens";
+import { FEATURE_EXTRACTION_SERVICE, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../../../constants/tokens";
 import type { VectorizationService } from "../../../vectorization/services/vectorization.service.interface";
-import type { FilterResult, ProductFilterService } from "../product-filter.service.interface";
+import type { FeatureExtractionService } from "../feature-extraction.service.interface";
 import { SearchRequestDto } from "../../dto/search-request.dto";
-
-export interface SearchServiceResult {
-	products: SearchResult[];
-	filteringStatus: "AI_FILTERED" | "AI_RANKED" | "RAG_ONLY";
-	filterResult?: FilterResult;
-}
+import { FilteringStatus } from "../../dto/search-response.dto";
+import { SearchServiceResult } from "../../interfaces/search-service-result.interface";
 
 @Injectable()
 export class SearchServiceImpl implements SearchService {
@@ -19,65 +15,90 @@ export class SearchServiceImpl implements SearchService {
 	constructor(
 		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
 		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService,
-		@Inject(PRODUCT_FILTER_SERVICE) private readonly productFilterService: ProductFilterService
+		@Inject(FEATURE_EXTRACTION_SERVICE) private readonly featureExtractionService: FeatureExtractionService
 	) {}
 
-	async search({ q, take, skip }: SearchRequestDto): Promise<SearchResult[]> {
+	async search({ q, take, skip }: SearchRequestDto): Promise<SearchServiceResult> {
 		this.logger.log(`Searching for: ${q}`);
 
 		if (!q) {
 			this.logger.warn("No query provided, returning empty result");
-			return [];
+			return {
+				results: [],
+				filteringStatus: FilteringStatus.RAG_ONLY,
+			};
 		}
 
-    // 1. Embed query into vector space
-		const queryVector: number[] = await this.vectorizationService.embedString(q);
+		// 0. Get available facets (brands, categories) for LLM context
+		const facets = await this.productRepository.getFacets();
 
-    // 2. Search in RAG index (using OpenAI's Embeddings API)
-		const ragResults = await this.productRepository.search(queryVector, take, skip);
+		// 1. Extract filters from query
+		const extracted = await this.featureExtractionService.extractFilters(q, facets.brands, facets.categories);
 
-		// 3. If no RAG results, return empty
-		if (ragResults.length === 0) {
-      this.logger.log("No RAG results found, returning empty result");
-			return [];
-		}
+		const hasFilters =
+			extracted.brand ||
+			extracted.excludeBrand ||
+			extracted.category ||
+			extracted.excludeCategory ||
+			extracted.priceMin !== undefined ||
+			extracted.priceMax !== undefined;
+		const cleanQuery = extracted.searchQuery;
 
-    // 4. Filter RAG results using AI (Waterfall approach)
-		const filterResult = await this.productFilterService.filterProducts(ragResults, q);
+		this.logger.log(`Extracted filters: ${JSON.stringify(extracted)}`);
 
-		// Determine filtering status based on strategy
-		let filteringStatus: "AI_FILTERED" | "AI_RANKED" | "RAG_ONLY";
+		// 2. Embed query into vector space (use a clean query if filters exist, otherwise original)
+		const queryToEmbed = hasFilters && cleanQuery ? cleanQuery : q;
+		const queryVector: number[] = await this.vectorizationService.embedString(queryToEmbed);
 
-		if (filterResult.strategy === "HARD_FILTER") {
-			filteringStatus = "AI_FILTERED";
-		} else if (filterResult.strategy === "SOFT_RANKING" || filterResult.strategy === "HYBRID") {
-			filteringStatus = "AI_RANKED";
+		let results: SearchResult[];
+		let filteringStatus: FilteringStatus = FilteringStatus.RAG_ONLY;
+
+		// 3. Hybrid Search
+		if (hasFilters) {
+			this.logger.log(`Performing Hybrid Search with filters...`);
+			results = await this.productRepository.hybridSearch(
+				queryVector,
+				{
+					brand: extracted.brand,
+					excludeBrand: extracted.excludeBrand,
+					category: extracted.category,
+					excludeCategory: extracted.excludeCategory,
+					priceMin: extracted.priceMin,
+					priceMax: extracted.priceMax,
+				},
+				take,
+				skip
+			);
+			filteringStatus = FilteringStatus.AI_FILTERED;
 		} else {
-			filteringStatus = "RAG_ONLY";
+			// 4. Standard RAG Search
+			this.logger.log(`Performing Standard RAG Search...`);
+			results = await this.productRepository.search(queryVector, take, skip);
 		}
 
-		// If strategy is NONE, fallback to returning all RAG results
-		if (filterResult.strategy === "NONE") {
-			this.logger.log(`No AI filtering applied (strategy NONE), returning all ${ragResults.length} RAG results`);
-			(ragResults as any).__filteringStatus = "RAG_ONLY";
-			return ragResults;
+		if (results.length === 0) {
+			this.logger.warn("No results found");
+			return {
+				results: [],
+				filteringStatus: FilteringStatus.RAG_ONLY,
+			};
 		}
 
-		// If AI applied a strategy (HARD_FILTER, SOFT_RANKING, HYBRID), return the filtered results
-		// Even if the result is empty (meaning no products matched the strict filters)
-		this.logger.log(
-			`AI ${filteringStatus}: ${filterResult.filteredProductIds.length}/${ragResults.length} products. ` +
-				`Reasoning: ${filterResult.reasoning}`
-		);
+		this.logger.log(`Returning ${results.length} results`);
 
-		const filtered = ragResults.filter((result) =>
-			filterResult.filteredProductIds.includes(result.product.externalId)
-		);
-
-		// Store filtering status and result in a way the controller can access
-		(filtered as any).__filteringStatus = filteringStatus;
-		(filtered as any).__filterResult = filterResult;
-
-		return filtered;
+		return {
+			results,
+			filteringStatus,
+			appliedFilters: {
+				brand: extracted.brand,
+				excludedBrand: extracted.excludeBrand,
+				priceRange:
+					extracted.priceMin || extracted.priceMax
+						? { min: extracted.priceMin, max: extracted.priceMax, currency: "UAH" }
+						: undefined,
+				attributes: extracted.category ? { category: extracted.category.join(", ") } : undefined,
+				excludedAttributes: extracted.excludeCategory ? { category: extracted.excludeCategory.join(", ") } : undefined,
+			},
+		};
 	}
 }

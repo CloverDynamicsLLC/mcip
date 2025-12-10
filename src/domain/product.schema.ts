@@ -12,7 +12,7 @@ export const CurrencyEnum = z.enum(["UAH", "USD", "EUR"]);
  */
 const PriceSchema = z.object({
 	amount: z.coerce.number().min(0).describe("The current selling price of the item"),
-	currency: CurrencyEnum.default("UAH").describe("ISO 4217 currency code"),
+	currency: CurrencyEnum.default("USD").describe("ISO 4217 currency code"),
 });
 
 /**
@@ -49,6 +49,10 @@ export const UnifiedProductSchema = z.object({
 	title: z.string().min(3).describe("Clean product title, no marketing caps lock"),
 	description: z.string().describe("Clear text description, HTML tags removed"),
 
+	// --- Categorization (for filtering) ---
+	brand: z.string().optional().describe("Product brand name (e.g., Nike, Apple, Samsung)"),
+	category: z.string().optional().describe("Product category (e.g., Laptops, Shoes, Phones)"),
+
 	// --- Commercial Data ---
 	price: PriceSchema.describe("Base price of the product"),
 
@@ -64,6 +68,5 @@ export const UnifiedProductSchema = z.object({
 	keywords: z.array(z.string()).describe("Array of 5-10 search keywords, synonyms, or related terms for SEO"),
 });
 
-// Exporting TypeScript types derived from the Zod schema
 export type UnifiedProduct = z.infer<typeof UnifiedProductSchema>;
 export type ProductVariant = z.infer<typeof VariantSchema>;

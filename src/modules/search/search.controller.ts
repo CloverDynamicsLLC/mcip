@@ -10,22 +10,18 @@ export class SearchController {
 
 	@Get()
 	async search(@Query() request: SearchRequestDto): Promise<SearchResponseDto> {
-		const foundProducts = await this.searchService.search(request);
-
-		// Extract filtering status and result from the array (hacky but simple)
-		const filteringStatus = (foundProducts as any).__filteringStatus || "RAG_ONLY";
-		const filterResult = (foundProducts as any).__filterResult;
+		const result = await this.searchService.search(request);
 
 		return {
 			meta: {
-				count: foundProducts.length,
+				count: result.results.length,
 				take: request.take ?? 10,
 				skip: request.skip ?? 0,
 				q: request.q ?? '',
-				filteringStatus,
-				appliedFilters: filterResult?.appliedFilters,
+				filteringStatus: result.filteringStatus,
+				appliedFilters: result.appliedFilters,
 			},
-			items: foundProducts.map((item) => ({
+			items: result.results.map((item) => ({
 				...item.product,
 				score: item.score,
 			})),
