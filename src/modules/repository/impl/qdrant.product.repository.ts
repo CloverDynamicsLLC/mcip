@@ -31,30 +31,53 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 				const result = await this.client.getCollections();
 				const exists = result.collections.some((c) => c.name === this.COLLECTION_NAME);
 
-				if (!exists) {
-					this.logger.log(`Creating collection '${this.COLLECTION_NAME}'...`);
-					await this.client.createCollection(this.COLLECTION_NAME, {
-						vectors: {
-							size: 1536, // Matches OpenAI 'text-embedding-3-small' dimension
-							distance: "Cosine",
-						},
-					});
+			if (!exists) {
+				this.logger.log(`Creating collection '${this.COLLECTION_NAME}'...`);
+				await this.client.createCollection(this.COLLECTION_NAME, {
+					vectors: {
+						size: 1536, // Matches OpenAI 'text-embedding-3-small' dimension
+						distance: "Cosine",
+					},
+				});
+			}
 
-					// OPTIONAL: Create Payload Indexes for fast filtering (filtering by price, brand, etc.)
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "price.amount",
-						field_schema: "float",
-					});
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "category",
-						field_schema: "keyword",
-					});
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "brand",
-						field_schema: "keyword",
-					});
-				}
-				return; // Success
+			// Create Payload Indexes for fast filtering
+			// We do this EVERY startup to ensure they exist even if the collection was already there.
+			this.logger.log("Ensuring payload indexes exist...");
+			
+			try {
+				await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+					field_name: "price.amount",
+					field_schema: "float",
+				});
+				this.logger.log("✓ Index created/verified: price.amount (float)");
+			} catch (error) {
+				// Index might already exist, which is fine
+				this.logger.debug(`Index price.amount: ${error.message}`);
+			}
+
+			try {
+				await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+					field_name: "category",
+					field_schema: "keyword", // Keyword is required for Facet API
+				});
+				this.logger.log("✓ Index created/verified: category (keyword)");
+			} catch (error) {
+				this.logger.debug(`Index category: ${error.message}`);
+			}
+
+			try {
+				await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+					field_name: "brand",
+					field_schema: "keyword", // Keyword is required for Facet API
+				});
+				this.logger.log("✓ Index created/verified: brand (keyword)");
+			} catch (error) {
+				this.logger.debug(`Index brand: ${error.message}`);
+			}
+			
+			this.logger.log("Collection initialization complete");
+			return; // Success
 			} catch (error) {
 				this.logger.warn(`Failed to connect to Qdrant (attempt ${i + 1}/${retries}): ${error.message}`);
 				if (i === retries - 1) {
@@ -153,6 +176,31 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		await this.client.delete(this.COLLECTION_NAME, {
 			points: [id],
 		});
+	}
+
+	/**
+	 * Recreate all payload indexes.
+	 * Useful for fixing missing indexes without recreating the entire collection.
+	 */
+	async recreateIndexes(): Promise<void> {
+		this.logger.log("Recreating payload indexes...");
+		
+		const indexes = [
+			{ field_name: "price.amount", field_schema: "float" as const },
+			{ field_name: "category", field_schema: "keyword" as const },
+			{ field_name: "brand", field_schema: "keyword" as const },
+		];
+
+		for (const index of indexes) {
+			try {
+				await this.client.createPayloadIndex(this.COLLECTION_NAME, index);
+				this.logger.log(`✓ Index created: ${index.field_name} (${index.field_schema})`);
+			} catch (error) {
+				this.logger.warn(`Failed to create index ${index.field_name}: ${error.message}`);
+			}
+		}
+		
+		this.logger.log("Index recreation complete");
 	}
 }
 

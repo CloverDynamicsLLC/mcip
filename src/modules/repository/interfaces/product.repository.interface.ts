@@ -42,4 +42,9 @@ export interface ProductRepository {
 	 * Deletes a product by ID.
 	 */
 	delete(id: string): Promise<void>;
+
+	/**
+	 * Recreate all payload indexes.
+	 */
+	recreateIndexes(): Promise<void>;
 }
