@@ -37,7 +37,9 @@ export class SearchServiceImpl implements SearchService {
 
 		const hasFilters =
 			extracted.brand ||
+			extracted.excludeBrand ||
 			extracted.category ||
+			extracted.excludeCategory ||
 			extracted.priceMin !== undefined ||
 			extracted.priceMax !== undefined;
 		const cleanQuery = extracted.searchQuery;
@@ -58,7 +60,9 @@ export class SearchServiceImpl implements SearchService {
 				queryVector,
 				{
 					brand: extracted.brand,
+					excludeBrand: extracted.excludeBrand,
 					category: extracted.category,
+					excludeCategory: extracted.excludeCategory,
 					priceMin: extracted.priceMin,
 					priceMax: extracted.priceMax,
 				},
@@ -87,11 +91,13 @@ export class SearchServiceImpl implements SearchService {
 			filteringStatus,
 			appliedFilters: {
 				brand: extracted.brand,
+				excludedBrand: extracted.excludeBrand,
 				priceRange:
 					extracted.priceMin || extracted.priceMax
 						? { min: extracted.priceMin, max: extracted.priceMax, currency: "UAH" }
 						: undefined,
 				attributes: extracted.category ? { category: extracted.category.join(", ") } : undefined,
+				excludedAttributes: extracted.excludeCategory ? { category: extracted.excludeCategory.join(", ") } : undefined,
 			},
 		};
 	}

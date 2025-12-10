@@ -7,7 +7,9 @@ export interface SearchResult {
 
 export interface SearchFilters {
 	brand?: string[];
+	excludeBrand?: string[];
 	category?: string[];
+	excludeCategory?: string[];
 	priceMin?: number;
 	priceMax?: number;
 }

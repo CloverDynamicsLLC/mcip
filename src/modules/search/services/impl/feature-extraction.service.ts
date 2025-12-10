@@ -28,11 +28,19 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 			brand: z
 				.array(z.string())
 				.nullish()
-				.describe("List of brands identified in the query. MUST be from the available list of brands."),
+				.describe("List of brands to INCLUDE. MUST be from the available list of brands."),
+			excludeBrand: z
+				.array(z.string())
+				.nullish()
+				.describe("List of brands to EXCLUDE (e.g., 'but not Nike', 'except Apple', 'without Samsung'). MUST be from the available list of brands."),
 			category: z
 				.array(z.string())
 				.nullish()
-				.describe("List of categories identified in the query. MUST be from the available list of categories."),
+				.describe("List of categories to INCLUDE. MUST be from the available list of categories."),
+			excludeCategory: z
+				.array(z.string())
+				.nullish()
+				.describe("List of categories to EXCLUDE (e.g., 'but not laptops', 'except phones'). MUST be from the available list of categories."),
 			priceMin: z.number().nullish().describe("Minimum price extracted from query (e.g. 'over $100')"),
 			priceMax: z.number().nullish().describe("Maximum price extracted from query (e.g. 'under $500')"),
 			searchQuery: z
@@ -50,16 +58,29 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 						role: "system",
 						content: `
               You are a search query understander for an e-commerce store.
-              Extract filters and clean the search query.
+              Extract filters and clean the search query. You MUST detect both INCLUSION and EXCLUSION patterns.
 
               Available Brands: ${availableBrands.join(", ")}
               Available Categories: ${availableCategories.join(", ")}
 
               Rules:
-              1. Map brand mentions to the EXACT string from Available Brands.
-              2. Map category intent to the EXACT string from Available Categories.
-              3. Extract price ranges (greater than, less than, between).
-              4. 'searchQuery' should be the remaining keywords after extracting filters. If the whole query was filters (e.g. 'phones'), 'searchQuery' should be empty or generic like 'smartphone'.
+              1. INCLUSION: Detect brands/categories the user wants (e.g., "Nike shoes", "Apple laptops")
+              2. EXCLUSION: Detect brands/categories the user wants to EXCLUDE using patterns like:
+                 - "but not [brand]"
+                 - "except [brand]"
+                 - "without [brand]"
+                 - "no [brand]"
+                 - "everything except [brand]"
+                 - "all brands but [brand]"
+              3. Map all brand/category mentions to EXACT strings from the available lists.
+              4. Extract price ranges (greater than, less than, between).
+              5. 'searchQuery' should be the remaining keywords after extracting all filters.
+              
+              Examples:
+              - "Nike shoes" → brand: ["Nike"], searchQuery: "shoes"
+              - "shoes but not Nike" → excludeBrand: ["Nike"], searchQuery: "shoes"
+              - "laptops except Apple" → category: ["Laptops"], excludeBrand: ["Apple"], searchQuery: ""
+              - "phones under $500 no Samsung" → category: ["Phones"], excludeBrand: ["Samsung"], priceMax: 500, searchQuery: ""
             `,
 					},
 					{
@@ -78,11 +99,15 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 
 			// Validate extracted values against available lists (double check)
 			const validBrands = result.brand?.filter((b) => availableBrands.includes(b)) || [];
+			const validExcludeBrands = result.excludeBrand?.filter((b) => availableBrands.includes(b)) || [];
 			const validCategories = result.category?.filter((c) => availableCategories.includes(c)) || [];
+			const validExcludeCategories = result.excludeCategory?.filter((c) => availableCategories.includes(c)) || [];
 
 			return {
 				brand: validBrands.length > 0 ? validBrands : undefined,
+				excludeBrand: validExcludeBrands.length > 0 ? validExcludeBrands : undefined,
 				category: validCategories.length > 0 ? validCategories : undefined,
+				excludeCategory: validExcludeCategories.length > 0 ? validExcludeCategories : undefined,
 				priceMin: result.priceMin ?? undefined,
 				priceMax: result.priceMax ?? undefined,
 				searchQuery: result.searchQuery || query,

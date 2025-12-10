@@ -119,20 +119,38 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 
 	async hybridSearch(
 		queryVector: number[],
-		filters: { brand?: string[]; category?: string[]; priceMin?: number; priceMax?: number },
+		filters: { 
+			brand?: string[]; 
+			excludeBrand?: string[];
+			category?: string[]; 
+			excludeCategory?: string[];
+			priceMin?: number; 
+			priceMax?: number;
+		},
 		limit = 10,
 		offset = 0
 	): Promise<SearchResult[]> {
 		const must: any[] = [];
+		const must_not: any[] = [];
 
-		// Brand filter (exact match)
+		// Brand INCLUSION filter (exact match)
 		if (filters.brand?.length) {
 			must.push({ key: "brand", match: { any: filters.brand } });
 		}
 
-		// Category filter (exact match)
+		// Brand EXCLUSION filter
+		if (filters.excludeBrand?.length) {
+			must_not.push({ key: "brand", match: { any: filters.excludeBrand } });
+		}
+
+		// Category INCLUSION filter (exact match)
 		if (filters.category?.length) {
 			must.push({ key: "category", match: { any: filters.category } });
+		}
+
+		// Category EXCLUSION filter
+		if (filters.excludeCategory?.length) {
+			must_not.push({ key: "category", match: { any: filters.excludeCategory } });
 		}
 
 		// Price range filter
@@ -146,12 +164,17 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 			});
 		}
 
+		// Build filter object with must and must_not conditions
+		const filter: any = {};
+		if (must.length > 0) filter.must = must;
+		if (must_not.length > 0) filter.must_not = must_not;
+
 		const searchResult = await this.client.search(this.COLLECTION_NAME, {
 			vector: queryVector,
 			limit,
 			offset,
 			with_payload: true,
-			filter: must.length > 0 ? { must } : undefined,
+			filter: Object.keys(filter).length > 0 ? filter : undefined,
 		});
 
 		return searchResult.map((hit) => ({

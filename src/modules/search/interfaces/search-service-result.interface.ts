@@ -6,7 +6,9 @@ export interface SearchServiceResult {
 	filteringStatus: FilteringStatus;
 	appliedFilters?: {
 		brand?: string[];
+		excludedBrand?: string[];
 		priceRange?: { min?: number; max?: number; currency?: string };
 		attributes?: Record<string, string>;
+		excludedAttributes?: Record<string, string>;
 	};
 }
