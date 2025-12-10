@@ -23,6 +23,8 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 		availableCategories: string[]
 	): Promise<ExtractedFilters> {
 		this.logger.log(`Extracting filters for query: "${query}"`);
+		this.logger.debug(`Available brands (${availableBrands.length}): ${availableBrands.join(", ")}`);
+		this.logger.debug(`Available categories (${availableCategories.length}): ${availableCategories.join(", ")}`);
 
 		const FilterSchema = z.object({
 			brand: z
@@ -91,19 +93,44 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 				response_format: zodResponseFormat(FilterSchema, "filters"),
 			});
 
-			const result = completion.choices[0].message.parsed;
+		const result = completion.choices[0].message.parsed;
 
-			if (!result) {
-				return { searchQuery: query };
-			}
+		if (!result) {
+			return { searchQuery: query };
+		}
 
-			// Validate extracted values against available lists (double check)
-			const validBrands = result.brand?.filter((b) => availableBrands.includes(b)) || [];
-			const validExcludeBrands = result.excludeBrand?.filter((b) => availableBrands.includes(b)) || [];
-			const validCategories = result.category?.filter((c) => availableCategories.includes(c)) || [];
-			const validExcludeCategories = result.excludeCategory?.filter((c) => availableCategories.includes(c)) || [];
+		// Log what LLM extracted (before validation)
+		this.logger.log(`LLM extracted - Brands: [${result.brand?.join(", ") || "none"}], ExcludeBrands: [${result.excludeBrand?.join(", ") || "none"}]`);
+		this.logger.log(`LLM extracted - Categories: [${result.category?.join(", ") || "none"}], ExcludeCategories: [${result.excludeCategory?.join(", ") || "none"}]`);
+		this.logger.log(`LLM extracted - PriceMin: ${result.priceMin ?? "none"}, PriceMax: ${result.priceMax ?? "none"}`);
 
-			return {
+		// Validate extracted values against available lists (double check)
+		const validBrands = result.brand?.filter((b) => availableBrands.includes(b)) || [];
+		const validExcludeBrands = result.excludeBrand?.filter((b) => availableBrands.includes(b)) || [];
+		const validCategories = result.category?.filter((c) => availableCategories.includes(c)) || [];
+		const validExcludeCategories = result.excludeCategory?.filter((c) => availableCategories.includes(c)) || [];
+
+		// Log validation results if any were filtered out
+		if (result.brand?.length !== validBrands.length) {
+			const invalid = result.brand?.filter((b) => !availableBrands.includes(b)) || [];
+			this.logger.warn(`Invalid brands filtered out: [${invalid.join(", ")}]`);
+		}
+		if (result.excludeBrand?.length !== validExcludeBrands.length) {
+			const invalid = result.excludeBrand?.filter((b) => !availableBrands.includes(b)) || [];
+			this.logger.warn(`Invalid exclude brands filtered out: [${invalid.join(", ")}]`);
+		}
+		if (result.category?.length !== validCategories.length) {
+			const invalid = result.category?.filter((c) => !availableCategories.includes(c)) || [];
+			this.logger.warn(`Invalid categories filtered out: [${invalid.join(", ")}]`);
+		}
+		if (result.excludeCategory?.length !== validExcludeCategories.length) {
+			const invalid = result.excludeCategory?.filter((c) => !availableCategories.includes(c)) || [];
+			this.logger.warn(`Invalid exclude categories filtered out: [${invalid.join(", ")}]`);
+		}
+
+		this.logger.log(`Final validated filters - Brands: [${validBrands.join(", ") || "none"}], Categories: [${validCategories.join(", ") || "none"}]`);
+
+		return {
 				brand: validBrands.length > 0 ? validBrands : undefined,
 				excludeBrand: validExcludeBrands.length > 0 ? validExcludeBrands : undefined,
 				category: validCategories.length > 0 ? validCategories : undefined,
