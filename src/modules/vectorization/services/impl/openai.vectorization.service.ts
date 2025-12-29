@@ -44,4 +44,3 @@ export class OpenAiVectorizationService implements VectorizationService {
 		return this.embedString(textToEmbed);
 	}
 }
-

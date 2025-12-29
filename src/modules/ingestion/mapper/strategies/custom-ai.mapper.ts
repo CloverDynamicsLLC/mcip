@@ -7,24 +7,24 @@ import { ProductMapper } from "../product-mapper.interface";
 
 @Injectable()
 export class CustomAiMapper implements ProductMapper {
-    private readonly logger = new Logger(CustomAiMapper.name);
-    private openai: OpenAI;
+	private readonly logger = new Logger(CustomAiMapper.name);
+	private openai: OpenAI;
 
-    constructor(private configService: ConfigService) {
-        this.openai = new OpenAI({
-            apiKey: this.configService.get<string>('OPENAI_API_KEY'),
-        });
-    }
+	constructor(private configService: ConfigService) {
+		this.openai = new OpenAI({
+			apiKey: this.configService.get<string>("OPENAI_API_KEY"),
+		});
+	}
 
-    async map(rawInput: any): Promise<UnifiedProduct> {
-        this.logger.log(`Mapping product using LLM: ${rawInput.id || "unknown"}`);
+	async map(rawInput: any): Promise<UnifiedProduct> {
+		this.logger.log(`Mapping product using LLM: ${rawInput.id || "unknown"}`);
 
-        const completion = await this.openai.chat.completions.parse({
-            model: "gpt-4o-mini",
-            messages: [
-                {
-                    role: "system",
-                    content: `
+		const completion = await this.openai.chat.completions.parse({
+			model: "gpt-4o-mini",
+			messages: [
+				{
+					role: "system",
+					content: `
             You are an expert E-commerce Data Cleaner.
             Transform the user's raw product data into the strictly defined schema.
             
@@ -36,22 +36,21 @@ export class CustomAiMapper implements ProductMapper {
             5. PRICE: Ensure price is a number. If currency is missing, default to UAH.
             6. METADATA: Extract 'brand' and 'category' from the title or description if not explicitly provided.
           `,
-                },
-                {
-                    role: "user",
-                    content: JSON.stringify(rawInput),
-                },
-            ],
-            response_format: zodResponseFormat(UnifiedProductSchema, "product"),
-        });
+				},
+				{
+					role: "user",
+					content: JSON.stringify(rawInput),
+				},
+			],
+			response_format: zodResponseFormat(UnifiedProductSchema, "product"),
+		});
 
-        const result = completion.choices[0].message.parsed;
+		const result = completion.choices[0].message.parsed;
 
-        if (!result) {
-            throw new Error("LLM failed to parse product data");
-        }
+		if (!result) {
+			throw new Error("LLM failed to parse product data");
+		}
 
-        return result;
-    }
+		return result;
+	}
 }
-

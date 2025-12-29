@@ -33,7 +33,12 @@ export interface ProductRepository {
 	/**
 	 * Hybrid search with hard filtering
 	 */
-	hybridSearch(queryVector: number[], filters: SearchFilters, limit?: number, offset?: number): Promise<SearchResult[]>;
+	hybridSearch(
+		queryVector: number[],
+		filters: SearchFilters,
+		limit?: number,
+		offset?: number
+	): Promise<SearchResult[]>;
 
 	/**
 	 * Get available values for filtering

@@ -17,7 +17,7 @@ export class SearchController {
 				count: result.results.length,
 				take: request.take ?? 10,
 				skip: request.skip ?? 0,
-				q: request.q ?? '',
+				q: request.q ?? "",
 				filteringStatus: result.filteringStatus,
 				appliedFilters: result.appliedFilters,
 			},

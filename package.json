@@ -1,10 +1,22 @@
 {
   "name": "mcip",
   "version": "0.0.1",
-  "description": "",
-  "author": "",
-  "private": true,
-  "license": "UNLICENSED",
+  "description": "An AI-powered product search and discovery agent",
+  "author": "CloverDynamics",
+  "private": false,
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/CloverDynamics/mcip.git"
+  },
+  "keywords": [
+    "nestjs",
+    "ai",
+    "search",
+    "qdrant",
+    "e-commerce",
+    "agent"
+  ],
   "scripts": {
     "build": "nest build",
     "format": "prettier --write \"src/**/*.ts\" \"test/**/*.ts\"",

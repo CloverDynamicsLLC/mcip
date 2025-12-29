@@ -9,7 +9,7 @@ import type { ProductRepository } from "../repository/interfaces/product.reposit
 export class AdminController {
 	constructor(
 		@Inject(INGESTION_SERVICE) private readonly ingestionService: IngestionService,
-		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
+		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository
 	) {}
 
 	@Post("sync")

@@ -24,5 +24,3 @@ export class SearchResponseDto {
 	};
 	items: ScoredProduct[];
 }
-
-

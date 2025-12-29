@@ -14,9 +14,3 @@ import { VECTORIZATION_SERVICE } from "../../constants/tokens";
 	exports: [VECTORIZATION_SERVICE],
 })
 export class VectorizationModule {}
-
-
-
-
-
-

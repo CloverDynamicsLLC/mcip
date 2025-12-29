@@ -22,4 +22,3 @@ import { VectorizationModule } from "../vectorization/vectorization.module";
 	],
 })
 export class SearchModule {}
-

@@ -119,7 +119,7 @@ export class VendureMapper implements ProductMapper {
 		// Source 1: Facet Values (Global Attributes like "Brand", "Color")
 		if (Array.isArray(product.facetValues)) {
 			product.facetValues.forEach((fv) => {
-				let facetName = fv.facet?.name;
+				const facetName = fv.facet?.name;
 				const value = fv.name;
 
 				const key = `${facetName || "Feature"}:${value}`;

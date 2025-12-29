@@ -97,7 +97,9 @@ export class SearchServiceImpl implements SearchService {
 						? { min: extracted.priceMin, max: extracted.priceMax, currency: "UAH" }
 						: undefined,
 				attributes: extracted.category ? { category: extracted.category.join(", ") } : undefined,
-				excludedAttributes: extracted.excludeCategory ? { category: extracted.excludeCategory.join(", ") } : undefined,
+				excludedAttributes: extracted.excludeCategory
+					? { category: extracted.excludeCategory.join(", ") }
+					: undefined,
 			},
 		};
 	}

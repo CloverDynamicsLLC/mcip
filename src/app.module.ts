@@ -6,7 +6,7 @@ import { BullModule } from "@nestjs/bullmq";
 import { IngestionModule } from "./modules/ingestion/ingestion.module";
 import { RepositoryModule } from "./modules/repository/repository.module";
 import { VectorizationModule } from "./modules/vectorization/vectorization.module";
-import { SearchModule } from './modules/search/search.module';
+import { SearchModule } from "./modules/search/search.module";
 import { AdminModule } from "./modules/admin/admin.module";
 
 @Module({
@@ -23,7 +23,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 		VectorizationModule,
 		VectorizationModule,
 		SearchModule,
-		AdminModule
+		AdminModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],

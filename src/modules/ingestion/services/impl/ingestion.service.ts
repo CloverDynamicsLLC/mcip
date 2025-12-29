@@ -34,12 +34,7 @@ export class IngestionServiceImpl implements IngestionService {
 		});
 	}
 
-	async importProducts({
-		url,
-		apiKey,
-		token,
-		graphqlQuery,
-	}: ImportProductsRequestDto): Promise<ImportProductsResponseDto> {
+	async importProducts({ url, apiKey, graphqlQuery }: ImportProductsRequestDto): Promise<ImportProductsResponseDto> {
 		this.logger.log(`Started importing from: ${url} ${graphqlQuery ? "(GraphQL)" : "(REST)"}`);
 
 		try {

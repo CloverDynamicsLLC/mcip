@@ -1,5 +1,9 @@
 # MCIP — Machine Customer Interaction Protocol
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+[![Build Status](https://img.shields.io/badge/build-passing-brightgreen)](https://github.com/CloverDynamics/mcip/actions)
+[![PRs Welcome](https://img.shields.io/badge/PRs-welcome-brightgreen.svg)](http://makeapullrequest.com)
+
 > An AI-powered product search and discovery agent
 
 A NestJS-based semantic search engine that enables natural language product discovery. Designed as a plug-and-play microservice that can connect to any e-commerce backend through configurable adapters.
@@ -29,6 +33,7 @@ A NestJS-based semantic search engine that enables natural language product disc
 ```
 
 **Data Flow:**
+
 1. **Ingestion** — Products are fetched from your store via REST/GraphQL
 2. **Normalization** — Raw data is mapped to a unified schema (via adapters)
 3. **Vectorization** — OpenAI generates embeddings for semantic search
@@ -95,27 +100,27 @@ curl "http://localhost:8080/search?q=nike+shoes+under+100"
 
 ## 📚 Documentation
 
-| Document | Description |
-|----------|-------------|
-| [Getting Started](./docs/getting-started.md) | Build, deploy, and run the server |
-| [Architecture](./docs/architecture.md) | System design and module overview |
+| Document                                     | Description                          |
+| -------------------------------------------- | ------------------------------------ |
+| [Getting Started](./docs/getting-started.md) | Build, deploy, and run the server    |
+| [Architecture](./docs/architecture.md)       | System design and module overview    |
 | [Custom Adapters](./docs/custom-adapters.md) | Create adapters for your data source |
-| [API Reference](./docs/api-reference.md) | All available endpoints |
-| [Configuration](./docs/configuration.md) | Environment variables and options |
+| [API Reference](./docs/api-reference.md)     | All available endpoints              |
+| [Configuration](./docs/configuration.md)     | Environment variables and options    |
 
 ## ⚙️ Configuration
 
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `OPENAI_API_KEY` | OpenAI API Key for embeddings | **Required** |
-| `SOURCE_URL` | URL to fetch products from | `https://demo.vendure.io/shop-api` |
-| `STORE_PROVIDER` | Adapter to use (`VENDURE` or `CUSTOM`) | `VENDURE` |
-| `GRAPHQL_QUERY` | GraphQL query for fetching products | — |
-| `ADMIN_API_KEY` | Secret key for admin endpoints | `secret-admin-key` |
-| `PORT` | Application port | `8080` |
-| `REDIS_HOST` | Redis hostname | `redis` |
-| `QDRANT_URL` | Qdrant URL | `http://qdrant:6333` |
-| `STOREFRONT_URL` | Your store's public URL (for product links) | — |
+| Variable         | Description                                 | Default                            |
+| ---------------- | ------------------------------------------- | ---------------------------------- |
+| `OPENAI_API_KEY` | OpenAI API Key for embeddings               | **Required**                       |
+| `SOURCE_URL`     | URL to fetch products from                  | `https://demo.vendure.io/shop-api` |
+| `STORE_PROVIDER` | Adapter to use (`VENDURE` or `CUSTOM`)      | `VENDURE`                          |
+| `GRAPHQL_QUERY`  | GraphQL query for fetching products         | —                                  |
+| `ADMIN_API_KEY`  | Secret key for admin endpoints              | `secret-admin-key`                 |
+| `PORT`           | Application port                            | `8080`                             |
+| `REDIS_HOST`     | Redis hostname                              | `redis`                            |
+| `QDRANT_URL`     | Qdrant URL                                  | `http://qdrant:6333`               |
+| `STOREFRONT_URL` | Your store's public URL (for product links) | —                                  |
 
 ## 🔌 API Endpoints
 
@@ -189,4 +194,4 @@ npm run test:e2e
 
 ## 📄 License
 
-UNLICENSED — Private project
+This project is licensed under the [MIT License](LICENSE).
