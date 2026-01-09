@@ -8,6 +8,7 @@ import { RepositoryModule } from "./modules/repository/repository.module";
 import { VectorizationModule } from "./modules/vectorization/vectorization.module";
 import { SearchModule } from "./modules/search/search.module";
 import { AdminModule } from "./modules/admin/admin.module";
+import { McpServerModule } from "./modules/mcp-server/mcp-server.module";
 
 @Module({
 	imports: [
@@ -24,6 +25,7 @@ import { AdminModule } from "./modules/admin/admin.module";
 		VectorizationModule,
 		SearchModule,
 		AdminModule,
+		McpServerModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
