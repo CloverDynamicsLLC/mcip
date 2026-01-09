@@ -55,7 +55,15 @@ export class SearchServiceImpl implements SearchService {
 
 		// 3. Hybrid Search
 		if (hasFilters) {
-			this.logger.log(`Performing Hybrid Search with filters...`);
+			this.logger.log(`Performing Hybrid Search with filters:`);
+			this.logger.log({
+				brand: extracted.brand,
+				excludeBrand: extracted.excludeBrand,
+				category: extracted.category,
+				excludeCategory: extracted.excludeCategory,
+				priceMin: extracted.priceMin,
+				priceMax: extracted?.priceMax === 0 ? undefined : extracted.priceMax,
+			});
 			results = await this.productRepository.hybridSearch(
 				queryVector,
 				{
@@ -64,7 +72,7 @@ export class SearchServiceImpl implements SearchService {
 					category: extracted.category,
 					excludeCategory: extracted.excludeCategory,
 					priceMin: extracted.priceMin,
-					priceMax: extracted.priceMax,
+					priceMax: extracted?.priceMax === 0 ? undefined : extracted.priceMax,
 				},
 				take,
 				skip
