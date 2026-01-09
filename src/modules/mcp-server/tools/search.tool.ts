@@ -9,14 +9,20 @@ export class SearchTool {
 	constructor(@Inject(SEARCH_SERVICE) private readonly searchService: SearchService) {}
 
 	@Tool({
-		name: "search-tool",
-		description: "Call it when user ask to search a product",
+		name: "search-products",
+		description: "Searches the product catalog based on a query",
 		parameters: z.object({
-			query: z.string().describe("User query to search some products"),
+			query: z.string().describe("User query for searching"),
 		}),
 	})
-	async search({ query }) {
+	async searchProducts({ query }) {
 		const result = await this.searchService.search({ q: query });
+
+		if (!result.results || result.results.length === 0) {
+			return {
+				content: [{ type: "text", text: `No products found for query: "${query}"` }],
+			};
+		}
 
 		return {
 			meta: {
