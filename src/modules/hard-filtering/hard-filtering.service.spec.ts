@@ -3,37 +3,75 @@ import { HardFilteringService } from "./hard-filtering.service";
 import { ConfigModule } from "@nestjs/config";
 import { HardFilteringModule } from "./hard-filtering.module";
 
-describe("HardFilteringService", () => {
-	let searchAgentService: HardFilteringService;
+interface TestCase {
+	query: string;
+	checkType: "category" | "brand";
+	allowedValues: string[]; // The "Database" simulation
+	expectedValue: string | null;
+}
 
-	beforeEach(async () => {
+const TEST_CASES: TestCase[] = [
+	// CASE 1: Perfect Match
+	{
+		query: "I want a MacBook",
+		checkType: "brand",
+		allowedValues: ["Apple", "Lenovo", "Dell"],
+		expectedValue: "Apple", // LLM should map "MacBook" -> "Apple" if it's smart, or at least recognize Apple context
+	},
+	// CASE 2: No Match (Filter functionality)
+	{
+		query: "Show me Samsung phones",
+		checkType: "brand",
+		allowedValues: ["Apple", "Google", "Motorola"], // Samsung is NOT here
+		expectedValue: null, // Should return null because Samsung isn't in DB
+	},
+	// CASE 3: Category Mapping
+	{
+		query: "I need a gaming rig",
+		checkType: "category",
+		allowedValues: ["Laptop", "Desktop", "Console"],
+		expectedValue: "Desktop", // LLM infers "gaming rig" -> "Desktop" from the allowed list
+	},
+	// CASE 4: Ambiguity
+	{
+		query: "cheap laptop",
+		checkType: "category",
+		allowedValues: ["Smartphone", "Laptop", "Tablet"],
+		expectedValue: "Laptop",
+	},
+];
+
+describe("HardFilteringService", () => {
+	let service: HardFilteringService;
+
+	beforeAll(async () => {
 		const module: TestingModule = await Test.createTestingModule({
 			imports: [await ConfigModule.forRoot(), HardFilteringModule],
 		}).compile();
+		service = module.get<HardFilteringService>(HardFilteringService);
+	}, 20000);
 
-		searchAgentService = module.get<HardFilteringService>(HardFilteringService);
-	});
+	test.each(TEST_CASES)(
+		"Query: '$query' | Allowed: $allowedValues -> Expect: $expectedValue",
+		async ({ query, checkType, allowedValues, expectedValue }) => {
+			// 1. Prepare Context based on what we are testing
+			const context = {
+				validCategories: checkType === "category" ? allowedValues : [],
+				validBrands: checkType === "brand" ? allowedValues : [],
+			};
 
-	jest.setTimeout(20000);
+			// 2. Act
+			const result = await service.entrypoint(query, context);
 
-	it("should extract parameters using Real OpenAI", async () => {
-		const userQuery = "I want laptop Lenovo under 1000$";
+			console.log(`[${checkType}] Allowed: [${allowedValues}] -> Result:`, result);
 
-		console.log(`Sending query to OpenAI: "${userQuery}"...`);
-
-		// Act
-		const result = await searchAgentService.entrypoint(userQuery);
-
-		console.log("OpenAI Response:", result);
-
-		// Assert
-		// We use .toMatch for strings to be safe against case sensitivity (Lenovo vs lenovo)
-		expect(result.category).toMatch(/laptop/i);
-		expect(result.brand).toMatch(/Lenovo/i);
-
-		// Numbers are usually exact, but logic check is key
-		expect(result.price).toBeDefined();
-		expect(result.price?.amount).toBe(1000);
-		expect(result.price?.operator).toBe("lt"); // lt = less than
-	});
+			// 3. Assert
+			if (checkType === "brand") {
+				expect(result.brand).toBe(expectedValue);
+			} else if (checkType === "category") {
+				expect(result.category).toBe(expectedValue);
+			}
+		},
+		30000
+	);
 });
