@@ -9,6 +9,7 @@ import { VectorizationModule } from "./modules/vectorization/vectorization.modul
 import { SearchModule } from "./modules/search/search.module";
 import { AdminModule } from "./modules/admin/admin.module";
 import { McpServerModule } from "./modules/mcp-server/mcp-server.module";
+import { HardFilteringModule } from "./modules/hard-filtering/hard-filtering.module";
 
 @Module({
 	imports: [
@@ -26,6 +27,7 @@ import { McpServerModule } from "./modules/mcp-server/mcp-server.module";
 		SearchModule,
 		AdminModule,
 		McpServerModule,
+		HardFilteringModule,
 	],
 	controllers: [AppController],
 	providers: [AppService],
