@@ -1,6 +1,6 @@
-import { Inject, Injectable } from "@nestjs/common";
+import { ConsoleLogger, Inject, Injectable } from "@nestjs/common";
 import { HumanMessage } from "@langchain/core/messages";
-import { BrandSchema, CategorySchema, PriceSchema, SearchCriteria } from "./schemas/search.schema";
+import { BrandSchema, CategorySchema, PriceAndSortingSchema, SearchCriteria } from "./schemas/search.schema";
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AgentLogger } from "./agent/agent.logger";
@@ -8,6 +8,7 @@ import { AgentState, ExtractionContext } from "./agent/agent.state";
 
 @Injectable()
 export class HardFilteringService {
+	private readonly logger = new ConsoleLogger("HardFilteringService");
 	private agentLogger = new AgentLogger();
 	private graphRunnable: any;
 
@@ -20,14 +21,17 @@ export class HardFilteringService {
 			.addNode("extractCategory", this.extractCategoryNode)
 			.addNode("extractBrand", this.extractBrandNode)
 			.addNode("extractPrice", this.extractPriceNode)
+			.addNode("validateAndLog", this.validateAndLogNode)
 
 			.addEdge(START, "extractCategory")
 			.addEdge(START, "extractBrand")
 			.addEdge(START, "extractPrice")
 
-			.addEdge("extractCategory", END)
-			.addEdge("extractBrand", END)
-			.addEdge("extractPrice", END);
+			.addEdge("extractCategory", "validateAndLog")
+			.addEdge("extractBrand", "validateAndLog")
+			.addEdge("extractPrice", "validateAndLog")
+
+			.addEdge("validateAndLog", END);
 
 		this.graphRunnable = workflow.compile();
 	}
@@ -94,9 +98,37 @@ export class HardFilteringService {
 	};
 
 	private extractPriceNode = async (state: typeof AgentState.State) => {
-		const model = this.model.withStructuredOutput(PriceSchema);
-		const result = await model.invoke(state.messages[state.messages.length - 1].content as string);
+		const systemMsg = `You are a Price and Sorting extractor.
+    User Query: "${state.messages[state.messages.length - 1].content}"
 
-		return { extraction: result };
+    RULES:
+    1. EXTRACTING PRICE:
+       - Only extract specific numbers (e.g., "$500", "under 100").
+       - NEVER guess or hallucinate a price range if no numbers are present.
+       - If no numbers are found, 'price' MUST be null.
+
+    2. EXTRACTING SORTING:
+       - If user says "cheap", "budget", "lowest price" -> set sorting: { field: "price", order: "asc" }.
+       - If user says "expensive", "luxury", "premium" -> set sorting: { field: "price", order: "desc" }.
+       - If user says "best rated" -> set sorting: { field: "rating", order: "desc" }.
+    `;
+
+		const model = this.model.withStructuredOutput(PriceAndSortingSchema);
+		const result = await model.invoke(systemMsg);
+
+		return {
+			extraction: {
+				price: result.price,
+				sorting: result.sorting,
+			},
+		};
+	};
+
+	private validateAndLogNode = async (state: typeof AgentState.State) => {
+		const lastMessage = state.messages[state.messages.length - 1].content as string;
+		const extractedInfo = JSON.stringify(state.extraction, null, 2);
+		this.logger.log(`ALL EXTRACTIONS COMPLETE for query: ${lastMessage} ${extractedInfo}`);
+
+		return {};
 	};
 }
