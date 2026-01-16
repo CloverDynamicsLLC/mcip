@@ -1,20 +1,18 @@
 import { Module } from "@nestjs/common";
 import { HardFilteringService } from "./hard-filtering.service";
 import { ChatOpenAI } from "@langchain/openai";
+import { RepositoryModule } from "../repository/repository.module";
+import { LLM_MODEL } from "../../constants/tokens";
 
 @Module({
+	imports: [RepositoryModule],
 	providers: [
 		HardFilteringService,
 		{
-			provide: "CHAT_MODEL",
-			useFactory: () => {
-				return new ChatOpenAI({
-					model: "gpt-4o",
-					temperature: 0,
-				});
-			},
+			provide: LLM_MODEL,
+			useFactory: () => new ChatOpenAI({ model: "gpt-4o", temperature: 0 }),
 		},
 	],
-	exports: [HardFilteringService, "CHAT_MODEL"],
+	exports: [HardFilteringService, LLM_MODEL],
 })
 export class HardFilteringModule {}

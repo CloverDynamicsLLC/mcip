@@ -4,7 +4,10 @@ import { BrandSchema, CategorySchema, PriceAndSortingSchema, SearchCriteria } fr
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
 import { AgentLogger } from "./agent/agent.logger";
-import { AgentState, ExtractionContext } from "./agent/agent.state";
+import { AgentState } from "./agent/agent.state";
+import { LLM_MODEL, PRODUCT_REPOSITORY } from "../../constants/tokens";
+import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
+import { AvailableAttributesContext } from "./schemas/extraction.schema";
 
 @Injectable()
 export class HardFilteringService {
@@ -12,7 +15,10 @@ export class HardFilteringService {
 	private agentLogger = new AgentLogger();
 	private graphRunnable: any;
 
-	constructor(@Inject("CHAT_MODEL") private model: BaseChatModel) {
+	constructor(
+		@Inject(LLM_MODEL) private model: BaseChatModel,
+		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository
+	) {
 		this.initGraph();
 	}
 
@@ -21,25 +27,25 @@ export class HardFilteringService {
 			.addNode("extractCategory", this.extractCategoryNode)
 			.addNode("extractBrand", this.extractBrandNode)
 			.addNode("extractPrice", this.extractPriceNode)
-			.addNode("validateAndLog", this.validateAndLogNode)
+			.addNode("validateAndRetrieveAttributes", this.validateAndRetrieveAttributesNode)
 
 			.addEdge(START, "extractCategory")
 			.addEdge(START, "extractBrand")
 			.addEdge(START, "extractPrice")
 
-			.addEdge("extractCategory", "validateAndLog")
-			.addEdge("extractBrand", "validateAndLog")
-			.addEdge("extractPrice", "validateAndLog")
+			.addEdge("extractCategory", "validateAndRetrieveAttributes")
+			.addEdge("extractBrand", "validateAndRetrieveAttributes")
+			.addEdge("extractPrice", "validateAndRetrieveAttributes")
 
-			.addEdge("validateAndLog", END);
+			.addEdge("validateAndRetrieveAttributes", END);
 
 		this.graphRunnable = workflow.compile();
 	}
 
-	async entrypoint(query: string, context: ExtractionContext = {}): Promise<SearchCriteria> {
+	async entrypoint(query: string, availableAttributes: AvailableAttributesContext = {}): Promise<SearchCriteria> {
 		const input = {
 			messages: [new HumanMessage(query)],
-			context: context,
+			availableAttributes: availableAttributes,
 		};
 
 		const config = {
@@ -52,7 +58,7 @@ export class HardFilteringService {
 	}
 
 	private extractCategoryNode = async (state: typeof AgentState.State) => {
-		const validList = state.context.validCategories || [];
+		const validList = state.availableAttributes.categories || [];
 		const validListString = validList.length > 0 ? validList.join(", ") : "";
 
 		const systemMsg = `You are a category extractor. 
@@ -76,7 +82,7 @@ export class HardFilteringService {
 	};
 
 	private extractBrandNode = async (state: typeof AgentState.State) => {
-		const validList = state.context.validBrands || [];
+		const validList = state.availableAttributes.brands || [];
 		const validListString = validList.length > 0 ? validList.join(", ") : "";
 
 		const systemMsg = `You are a brand extractor. 
@@ -124,10 +130,12 @@ export class HardFilteringService {
 		};
 	};
 
-	private validateAndLogNode = async (state: typeof AgentState.State) => {
+	private validateAndRetrieveAttributesNode = async (state: typeof AgentState.State) => {
 		const lastMessage = state.messages[state.messages.length - 1].content as string;
 		const extractedInfo = JSON.stringify(state.extraction, null, 2);
 		this.logger.log(`ALL EXTRACTIONS COMPLETE for query: ${lastMessage} ${extractedInfo}`);
+
+		state.availableAttributes.map = [];
 
 		return {};
 	};

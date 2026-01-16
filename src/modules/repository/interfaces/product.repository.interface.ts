@@ -43,7 +43,7 @@ export interface ProductRepository {
 	/**
 	 * Get available values for filtering
 	 */
-	getFacets(): Promise<FacetResult>;
+	getFacetValues(key: string, limit?: number): Promise<string[]>;
 
 	/**
 	 * Deletes a product by ID.

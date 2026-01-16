@@ -183,16 +183,9 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		}));
 	}
 
-	async getFacets(): Promise<{ brands: string[]; categories: string[] }> {
-		const [brandsResult, categoriesResult] = await Promise.all([
-			this.client.facet(this.COLLECTION_NAME, { key: "brand", limit: 100 }),
-			this.client.facet(this.COLLECTION_NAME, { key: "category", limit: 100 }),
-		]);
-
-		return {
-			brands: brandsResult.hits.map((h) => h.value as string),
-			categories: categoriesResult.hits.map((h) => h.value as string),
-		};
+	async getFacetValues(key: string, limit: number = 100): Promise<string[]> {
+		const values = await this.client.facet(this.COLLECTION_NAME, { key, limit });
+		return values.hits.map((h) => h.value as string);
 	}
 
 	async delete(id: string): Promise<void> {

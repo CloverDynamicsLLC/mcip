@@ -6,3 +6,5 @@ export const FEATURE_EXTRACTION_SERVICE = Symbol("FEATURE_EXTRACTION_SERVICE");
 export const PRODUCT_MAPPER = Symbol("PRODUCT_MAPPER");
 
 export const PRODUCT_REPOSITORY = Symbol("PRODUCT_REPOSITORY");
+
+export const LLM_MODEL = Symbol("LLM_MODEL");

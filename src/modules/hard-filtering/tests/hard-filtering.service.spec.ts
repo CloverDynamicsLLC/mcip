@@ -4,6 +4,7 @@ import { ConfigModule } from "@nestjs/config";
 import { HardFilteringModule } from "../hard-filtering.module";
 import { categoryBrandTestCases } from "./test-cases/hard-filtering.data";
 import { priceSortingTestCases } from "./test-cases/price-sorting.data";
+import { AvailableAttributesContext } from "../schemas/extraction.schema";
 
 describe("HardFilteringService", () => {
 	let service: HardFilteringService;
@@ -19,13 +20,13 @@ describe("HardFilteringService", () => {
 		"Query: '$query' | Allowed: $allowedValues -> Expect: $expectedValue",
 		async ({ query, checkType, allowedValues, expectedValue }) => {
 			// 1. Prepare Context based on what we are testing
-			const context = {
-				validCategories: checkType === "category" ? allowedValues : [],
-				validBrands: checkType === "brand" ? allowedValues : [],
+			const availableAttributes: AvailableAttributesContext = {
+				categories: checkType === "category" ? allowedValues : [],
+				brands: checkType === "brand" ? allowedValues : [],
 			};
 
 			// 2. Act
-			const result = await service.entrypoint(query, context);
+			const result = await service.entrypoint(query, availableAttributes);
 
 			console.log(`[${checkType}] Allowed: [${allowedValues}] -> Result:`, result);
 
