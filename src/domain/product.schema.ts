@@ -1,4 +1,4 @@
-import { z } from "zod";
+import { z } from 'zod';
 
 /**
  * Currency Enum.
@@ -41,30 +41,16 @@ const VariantSchema = z.object({
  * This is the contract we enforce on the LLM.
  */
 export const UnifiedProductSchema = z.object({
-	// --- Identity ---
 	externalId: z.string().describe("Unique ID from the source shop system"),
 	url: z.string().describe("Direct link to the product page"),
-
-	// --- Core Content (Optimized for Search) ---
 	title: z.string().min(3).describe("Clean product title, no marketing caps lock"),
 	description: z.string().describe("Clear text description, HTML tags removed"),
-
-	// --- Categorization (for filtering) ---
 	brand: z.string().optional().describe("Product brand name (e.g., Nike, Apple, Samsung)"),
 	category: z.string().optional().describe("Product category (e.g., Laptops, Shoes, Phones)"),
-
-	// --- Commercial Data ---
 	price: PriceSchema.describe("Base price of the product"),
-
-	// --- Visuals ---
 	mainImage: z.string().describe("URL of the primary product image"),
-
-	// --- Details ---
 	attributes: z.array(AttributeSchema).default([]).describe("Technical specs list"),
 	variants: z.array(VariantSchema).default([]).describe("List of available options"),
-
-	// --- AI Generated Metadata ---
-	// This field is crucial for the Hybrid Search (Vector Search)
 	keywords: z.array(z.string()).describe("Array of 5-10 search keywords, synonyms, or related terms for SEO"),
 });
 

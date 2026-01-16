@@ -14,11 +14,6 @@ export interface SearchFilters {
 	priceMax?: number;
 }
 
-export interface FacetResult {
-	brands: string[];
-	categories: string[];
-}
-
 export interface ProductRepository {
 	/**
 	 * Saves the product and its vector.
