@@ -68,7 +68,9 @@ EXAMPLES:
 		const excludeSet = new Set(validExcludeBrands);
 		const finalBrands = validBrands.filter((b) => !excludeSet.has(b));
 
-		this.logger.debug(`Extracted brands: [${finalBrands.join(", ")}], excluded: [${validExcludeBrands.join(", ")}]`);
+		this.logger.debug(
+			`Extracted brands: [${finalBrands.join(", ")}], excluded: [${validExcludeBrands.join(", ")}]`
+		);
 
 		return {
 			extraction: {

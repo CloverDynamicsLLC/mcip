@@ -12,6 +12,6 @@ export abstract class BaseNode {
 	 */
 	protected getUserQuery(state: typeof AgentState.State): string {
 		const lastMessage = state.messages[state.messages.length - 1];
-		return lastMessage?.content as string ?? "";
+		return (lastMessage?.content as string) ?? "";
 	}
 }

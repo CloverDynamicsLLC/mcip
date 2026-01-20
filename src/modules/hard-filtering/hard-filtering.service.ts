@@ -222,8 +222,8 @@ export class HardFilteringService {
 
 		// Fetch from a repository
 		const [categories, brands] = await Promise.all([
-			provided?.categories ?? await this.productRepository.getFacetValues("category"),
-			provided?.brands ?? await this.productRepository.getFacetValues("brand"),
+			provided?.categories ?? (await this.productRepository.getFacetValues("category")),
+			provided?.brands ?? (await this.productRepository.getFacetValues("brand")),
 		]);
 
 		return { categories, brands };

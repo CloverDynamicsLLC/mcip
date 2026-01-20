@@ -39,11 +39,7 @@ export class InitialSearchNode extends BaseNode {
 		const queryVector = await this.vectorizationService.embedString(userQuery);
 
 		// Execute search
-		const results = await this.productRepository.hybridSearch(
-			queryVector,
-			filters,
-			this.INITIAL_SEARCH_LIMIT
-		);
+		const results = await this.productRepository.hybridSearch(queryVector, filters, this.INITIAL_SEARCH_LIMIT);
 
 		if (results.length === 0) {
 			this.logger.warn("No products found in initial search");
