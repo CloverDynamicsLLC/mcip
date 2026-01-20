@@ -25,11 +25,17 @@ export interface AgenticSearchResult {
  * Filters that were applied during search
  */
 export interface AppliedFilters {
-	/** Extracted brand filter */
-	brand?: string;
+	/** Brands to include in results */
+	brands?: string[];
 
-	/** Extracted category filter */
-	category?: string;
+	/** Brands to exclude from results */
+	excludeBrands?: string[];
+
+	/** Categories to include in results */
+	categories?: string[];
+
+	/** Categories to exclude from results */
+	excludeCategories?: string[];
 
 	/** Extracted price condition */
 	price?: {

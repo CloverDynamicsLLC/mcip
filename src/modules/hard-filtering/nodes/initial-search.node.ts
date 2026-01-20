@@ -1,8 +1,9 @@
 import { Injectable, Logger } from "@nestjs/common";
 import { AgentState } from "../agent/agent.state";
 import { BaseNode } from "./base.node";
-import type { ProductRepository, SearchFilters } from "../../repository/interfaces/product.repository.interface";
+import type { ProductRepository } from "../../repository/interfaces/product.repository.interface";
 import type { VectorizationService } from "../../vectorization/services/vectorization.service.interface";
+import { FilterBuilder } from "../utils/filter-builder";
 
 /**
  * Node responsible for performing initial search with basic filters (category, brand, price)
@@ -27,12 +28,11 @@ export class InitialSearchNode extends BaseNode {
 	 */
 	async execute(state: typeof AgentState.State) {
 		const userQuery = this.getUserQuery(state);
-		const { category, brand, price } = state.extraction;
 
 		this.logger.log(`Performing initial search for: "${userQuery}"`);
 
-		// Build filters from extraction
-		const filters = this.buildFilters(category, brand, price);
+		// Build filters from extraction using shared FilterBuilder
+		const filters = FilterBuilder.fromCriteria(state.extraction);
 		this.logger.debug(`Initial filters: ${JSON.stringify(filters)}`);
 
 		// Vectorize the query
@@ -60,47 +60,5 @@ export class InitialSearchNode extends BaseNode {
 			queryVector,
 			intermediateProducts: results.map((r) => r.product),
 		};
-	}
-
-	/**
-	 * Build SearchFilters from extracted criteria
-	 */
-	private buildFilters(
-		category: string | null | undefined,
-		brand: string | null | undefined,
-		price: { amount: number; operator: string; maxAmount: number | null } | null | undefined
-	): SearchFilters {
-		const filters: SearchFilters = {};
-
-		if (category) {
-			filters.category = [category];
-		}
-
-		if (brand) {
-			filters.brand = [brand];
-		}
-
-		if (price) {
-			switch (price.operator) {
-				case "lt":
-					filters.priceMax = price.amount;
-					break;
-				case "gt":
-					filters.priceMin = price.amount;
-					break;
-				case "eq":
-					filters.priceMin = price.amount;
-					filters.priceMax = price.amount;
-					break;
-				case "range":
-					filters.priceMin = price.amount;
-					if (price.maxAmount !== null) {
-						filters.priceMax = price.maxAmount;
-					}
-					break;
-			}
-		}
-
-		return filters;
 	}
 }

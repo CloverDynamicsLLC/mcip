@@ -5,7 +5,7 @@ import { BrandSchema } from "../schemas/search.schema";
 import { BaseNode } from "./base.node";
 
 /**
- * Node responsible for extracting brand from a user query
+ * Node responsible for extracting brands (include and exclude) from a user query
  */
 @Injectable()
 export class ExtractBrandNode extends BaseNode {
@@ -16,32 +16,79 @@ export class ExtractBrandNode extends BaseNode {
 	}
 
 	/**
-	 * Extract brand from user query, validating against available brands
+	 * Extract brands to include and exclude from user query
 	 */
 	async execute(state: typeof AgentState.State) {
 		const userQuery = this.getUserQuery(state);
 		const validList = state.availableAttributes.brands ?? [];
 		const validListString = validList.length > 0 ? validList.join(", ") : "No brands available";
 
-		const systemMsg = `You are a brand extractor.
-The user query is: "${userQuery}"
+		const systemMsg = `You are a brand extractor for an e-commerce search system.
+User Query: "${userQuery}"
+
+Available Brands: [${validListString}]
+
+TASK: Extract brands the user wants to INCLUDE and EXCLUDE from search results.
 
 RULES:
-1. Extract the brand name from the query.
-2. STRICT MATCHING: The result MUST be one of the following: [${validListString}].
-3. If the brand is not in this list, return null.
-4. Map product names to brands (e.g., "MacBook" → "Apple", "Galaxy" → "Samsung").
+1. INCLUSION patterns - user WANTS these brands:
+   - Direct mention: "Nike shoes", "Apple laptop"
+   - Product names that map to brands: "MacBook" → Apple, "Galaxy" → Samsung, "ThinkPad" → Lenovo
+
+2. EXCLUSION patterns - user does NOT want these brands:
+   - "but not [brand]"
+   - "except [brand]"
+   - "without [brand]"
+   - "no [brand]"
+   - "everything except [brand]"
+   - "any brand but [brand]"
+   - "not [brand]"
+
+3. STRICT MATCHING: All extracted brands MUST be from the available list: [${validListString}]
+4. If a mentioned brand is not in the list, DO NOT include it.
+5. A brand cannot be in both include and exclude lists.
+6. If no brands are mentioned or match, return empty arrays.
+
+EXAMPLES:
+- "Nike running shoes" → brands: ["Nike"], excludeBrands: []
+- "shoes but not Nike" → brands: [], excludeBrands: ["Nike"]
+- "Apple or Samsung phone" → brands: ["Apple", "Samsung"], excludeBrands: []
+- "laptop except Dell and HP" → brands: [], excludeBrands: ["Dell", "HP"]
+- "Nike shoes without Adidas" → brands: ["Nike"], excludeBrands: ["Adidas"]
 `;
 
 		const structuredModel = this.model.withStructuredOutput(BrandSchema);
 		const result = await structuredModel.invoke(systemMsg);
 
-		const normalizedBrand = result.brand === "" || result.brand === "null" ? null : result.brand;
+		// Validate against available brands
+		const validBrands = this.validateBrands(result.brands, validList);
+		const validExcludeBrands = this.validateBrands(result.excludeBrands, validList);
 
-		this.logger.debug(`Extracted brand: ${normalizedBrand}`);
+		// Ensure no overlap
+		const excludeSet = new Set(validExcludeBrands);
+		const finalBrands = validBrands.filter((b) => !excludeSet.has(b));
+
+		this.logger.debug(`Extracted brands: [${finalBrands.join(", ")}], excluded: [${validExcludeBrands.join(", ")}]`);
 
 		return {
-			extraction: { brand: normalizedBrand },
+			extraction: {
+				brands: finalBrands,
+				excludeBrands: validExcludeBrands,
+			},
 		};
+	}
+
+	/**
+	 * Validate extracted brands against available list
+	 */
+	private validateBrands(extracted: string[], available: string[]): string[] {
+		if (!extracted?.length) return [];
+
+		const availableSet = new Set(available.map((b) => b.toLowerCase()));
+		const availableMap = new Map(available.map((b) => [b.toLowerCase(), b]));
+
+		return extracted
+			.filter((brand) => availableSet.has(brand.toLowerCase()))
+			.map((brand) => availableMap.get(brand.toLowerCase()) ?? brand);
 	}
 }

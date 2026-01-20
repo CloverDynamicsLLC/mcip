@@ -23,8 +23,10 @@ export class AgenticSearchResponseDto {
 		query: string;
 		status: "success" | "no_results" | "partial";
 		appliedFilters: {
-			brand?: string;
-			category?: string;
+			brands?: string[];
+			excludeBrands?: string[];
+			categories?: string[];
+			excludeCategories?: string[];
 			price?: {
 				amount: number;
 				operator: string;

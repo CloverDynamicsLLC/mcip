@@ -246,8 +246,10 @@ export class HardFilteringService {
 			products: finalResults,
 			status: searchStatus,
 			appliedFilters: {
-				brand: extraction.brand ?? undefined,
-				category: extraction.category ?? undefined,
+				brands: extraction.brands?.length ? extraction.brands : undefined,
+				excludeBrands: extraction.excludeBrands?.length ? extraction.excludeBrands : undefined,
+				categories: extraction.categories?.length ? extraction.categories : undefined,
+				excludeCategories: extraction.excludeCategories?.length ? extraction.excludeCategories : undefined,
 				price: extraction.price ?? undefined,
 				sorting: extraction.sorting ?? undefined,
 				attributes: attributeFilters.length > 0 ? attributeFilters : undefined,

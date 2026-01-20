@@ -1,4 +1,4 @@
-import { z } from "zod";
+﻿import { z } from "zod";
 
 export const SortingSchema = z.object({
 	field: z.enum(["price"]).describe("Field to sort by"),
@@ -7,12 +7,22 @@ export const SortingSchema = z.object({
 
 export const PriceOperatorSchema = z.enum(["eq", "lt", "gt", "range"]);
 
+/**
+ * Schema for category extraction with inclusion and exclusion support
+ */
 export const CategorySchema = z.object({
-	category: z.string().nullable().describe("The product category only"),
+	categories: z.array(z.string()).describe("Categories to INCLUDE in search results. MUST be from available list."),
+	excludeCategories: z
+		.array(z.string())
+		.describe("Categories to EXCLUDE from search results. MUST be from available list."),
 });
 
+/**
+ * Schema for brand extraction with inclusion and exclusion support
+ */
 export const BrandSchema = z.object({
-	brand: z.string().nullable().describe("The brand name only"),
+	brands: z.array(z.string()).describe("Brands to INCLUDE in search results. MUST be from available list."),
+	excludeBrands: z.array(z.string()).describe("Brands to EXCLUDE from search results. MUST be from available list."),
 });
 
 export const PriceAndSortingSchema = z.object({
@@ -26,9 +36,14 @@ export const PriceAndSortingSchema = z.object({
 	sorting: SortingSchema.nullable(),
 });
 
+/**
+ * Complete search criteria extracted from user query
+ */
 export const SearchCriteriaSchema = z.object({
-	category: z.string().nullable().describe("The product category, e.g., 'laptop'"),
-	brand: z.string().nullable().describe("The brand name, e.g., 'Lenovo'"),
+	categories: z.array(z.string()).default([]).describe("Categories to include, e.g., ['Laptops', 'Tablets']"),
+	excludeCategories: z.array(z.string()).default([]).describe("Categories to exclude"),
+	brands: z.array(z.string()).default([]).describe("Brands to include, e.g., ['Apple', 'Samsung']"),
+	excludeBrands: z.array(z.string()).default([]).describe("Brands to exclude, e.g., ['Huawei']"),
 	price: z
 		.object({
 			amount: z.number().describe("The primary price value"),
@@ -40,3 +55,5 @@ export const SearchCriteriaSchema = z.object({
 });
 
 export type SearchCriteria = z.infer<typeof SearchCriteriaSchema>;
+export type CategoryExtraction = z.infer<typeof CategorySchema>;
+export type BrandExtraction = z.infer<typeof BrandSchema>;
