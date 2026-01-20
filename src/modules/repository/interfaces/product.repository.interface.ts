@@ -5,6 +5,17 @@ export interface SearchResult {
 	product: UnifiedProduct;
 }
 
+/**
+ * Single attribute filter condition
+ */
+export interface AttributeFilter {
+	name: string;
+	values: string[];
+}
+
+/**
+ * Filters for hybrid search combining vector similarity with hard filters
+ */
 export interface SearchFilters {
 	brand?: string[];
 	excludeBrand?: string[];
@@ -12,6 +23,8 @@ export interface SearchFilters {
 	excludeCategory?: string[];
 	priceMin?: number;
 	priceMax?: number;
+	/** Attribute-based filters for product specifications */
+	attributes?: AttributeFilter[];
 }
 
 export interface ProductRepository {

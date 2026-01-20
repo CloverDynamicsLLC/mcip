@@ -1,142 +1,259 @@
 import { ConsoleLogger, Inject, Injectable } from "@nestjs/common";
 import { HumanMessage } from "@langchain/core/messages";
-import { BrandSchema, CategorySchema, PriceAndSortingSchema, SearchCriteria } from "./schemas/search.schema";
 import { END, START, StateGraph } from "@langchain/langgraph";
 import { BaseChatModel } from "@langchain/core/language_models/chat_models";
+
 import { AgentLogger } from "./agent/agent.logger";
 import { AgentState } from "./agent/agent.state";
-import { LLM_MODEL, PRODUCT_REPOSITORY } from "../../constants/tokens";
+import { LLM_MODEL, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../constants/tokens";
 import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
+import type { VectorizationService } from "../vectorization/services/vectorization.service.interface";
 import { AvailableAttributesContext } from "./schemas/extraction.schema";
+import { SearchCriteria } from "./schemas/search.schema";
+import { AgenticSearchInput, AgenticSearchResult } from "./interfaces/agentic-search-result.interface";
 
+// Nodes
+import {
+	ExtractBrandNode,
+	ExtractCategoryNode,
+	ExtractCommonAttributesNode,
+	ExtractPriceNode,
+	FinalSearchNode,
+	InitialSearchNode,
+	MapAttributesNode,
+} from "./nodes";
+
+/**
+ * Service orchestrating the agentic search workflow using LangGraph.
+ *
+ * Flow:
+ * 1. Extract basic filters (category, brand, price) in parallel
+ * 2. Perform initial search with basic filters
+ * 3. Extract common attributes from intermediate results
+ * 4. Map user intent to attribute values via LLM
+ * 5. Execute the final search with all filters
+ */
 @Injectable()
 export class HardFilteringService {
-	private readonly logger = new ConsoleLogger("HardFilteringService");
-	private agentLogger = new AgentLogger();
-	private graphRunnable: any;
+	private readonly logger = new ConsoleLogger(HardFilteringService.name);
+	private readonly agentLogger = new AgentLogger();
+
+	// Graph instances
+	private legacyGraphRunnable: any;
+	private agenticGraphRunnable: any;
+
+	// Nodes
+	private readonly extractCategoryNode: ExtractCategoryNode;
+	private readonly extractBrandNode: ExtractBrandNode;
+	private readonly extractPriceNode: ExtractPriceNode;
+	private readonly initialSearchNode: InitialSearchNode;
+	private readonly extractCommonAttributesNode: ExtractCommonAttributesNode;
+	private readonly mapAttributesNode: MapAttributesNode;
+	private readonly finalSearchNode: FinalSearchNode;
 
 	constructor(
 		@Inject(LLM_MODEL) private model: BaseChatModel,
-		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository
+		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
+		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService
 	) {
-		this.initGraph();
+		// Initialize nodes with dependencies
+		this.extractCategoryNode = new ExtractCategoryNode(this.model);
+		this.extractBrandNode = new ExtractBrandNode(this.model);
+		this.extractPriceNode = new ExtractPriceNode(this.model);
+		this.initialSearchNode = new InitialSearchNode(this.productRepository, this.vectorizationService);
+		this.extractCommonAttributesNode = new ExtractCommonAttributesNode();
+		this.mapAttributesNode = new MapAttributesNode(this.model);
+		this.finalSearchNode = new FinalSearchNode(this.productRepository);
+
+		// Initialize graphs
+		this.initLegacyGraph();
+		this.initAgenticGraph();
 	}
 
-	private initGraph() {
-		const workflow = new StateGraph(AgentState)
-			.addNode("extractCategory", this.extractCategoryNode)
-			.addNode("extractBrand", this.extractBrandNode)
-			.addNode("extractPrice", this.extractPriceNode)
-			.addNode("validateAndRetrieveAttributes", this.validateAndRetrieveAttributesNode)
-
-			.addEdge(START, "extractCategory")
-			.addEdge(START, "extractBrand")
-			.addEdge(START, "extractPrice")
-
-			.addEdge("extractCategory", "validateAndRetrieveAttributes")
-			.addEdge("extractBrand", "validateAndRetrieveAttributes")
-			.addEdge("extractPrice", "validateAndRetrieveAttributes")
-
-			.addEdge("validateAndRetrieveAttributes", END);
-
-		this.graphRunnable = workflow.compile();
-	}
-
+	/**
+	 * Legacy entrypoint for basic filter extraction only.
+	 * Use agenticSearch() for the full workflow.
+	 */
 	async entrypoint(query: string, availableAttributes: AvailableAttributesContext = {}): Promise<SearchCriteria> {
 		const input = {
 			messages: [new HumanMessage(query)],
-			availableAttributes: availableAttributes,
+			availableAttributes,
 		};
 
 		const config = {
 			callbacks: [this.agentLogger],
 		};
 
-		const result = await this.graphRunnable.invoke(input, config);
+		const result = await this.legacyGraphRunnable.invoke(input, config);
 
 		return result.extraction;
 	}
 
-	private extractCategoryNode = async (state: typeof AgentState.State) => {
-		const validList = state.availableAttributes.categories || [];
-		const validListString = validList.length > 0 ? validList.join(", ") : "";
+	/**
+	 * Full agentic search workflow with attribute extraction and mapping.
+	 */
+	async agenticSearch(input: AgenticSearchInput): Promise<AgenticSearchResult> {
+		this.logger.log(`Starting agentic search for: "${input.query}"`);
 
-		const systemMsg = `You are a category extractor. 
-    The user query is: "${state.messages[state.messages.length - 1].content}"
-    
-    RULES:
-    1. Extract the product category from the query.
-    2. STRICT MATCHING: The result MUST be one of the following: [${validListString}].
-    3. If the user mentions a category not in this list, return null.
-    `;
+		// Fetch available facets if not provided
+		const availableAttributes = await this.getAvailableAttributes(input.availableAttributes);
 
-		const model = this.model.withStructuredOutput(CategorySchema);
-
-		const result = await model.invoke(systemMsg);
-
-		const normalizedCategory = result.category === "" ? null : result.category;
-
-		return {
-			extraction: { category: normalizedCategory },
+		const graphInput = {
+			messages: [new HumanMessage(input.query)],
+			availableAttributes,
 		};
-	};
 
-	private extractBrandNode = async (state: typeof AgentState.State) => {
-		const validList = state.availableAttributes.brands || [];
-		const validListString = validList.length > 0 ? validList.join(", ") : "";
-
-		const systemMsg = `You are a brand extractor. 
-    The user query is: "${state.messages[state.messages.length - 1].content}"
-    
-    RULES:
-    1. Extract the brand name.
-    2. STRICT MATCHING: The result MUST be one of the following: [${validListString}].
-    3. If the brand is not in this list, return null.
-    `;
-
-		const model = this.model.withStructuredOutput(BrandSchema);
-		const result = await model.invoke(systemMsg);
-		const normalizedBrand = result.brand === "" || result.brand === "null" ? null : result.brand;
-
-		return {
-			extraction: { brand: normalizedBrand },
+		const config = {
+			callbacks: [this.agentLogger],
 		};
-	};
 
-	private extractPriceNode = async (state: typeof AgentState.State) => {
-		const systemMsg = `You are a Price and Sorting extractor.
-    User Query: "${state.messages[state.messages.length - 1].content}"
+		const result = await this.agenticGraphRunnable.invoke(graphInput, config);
 
-    RULES:
-    1. EXTRACTING PRICE:
-       - Only extract specific numbers (e.g., "$500", "under 100").
-       - NEVER guess or hallucinate a price range if no numbers are present.
-       - If no numbers are found, 'price' MUST be null.
+		return this.buildAgenticResult(result);
+	}
 
-    2. EXTRACTING SORTING:
-       - If user says "cheap", "budget", "lowest price" -> set sorting: { field: "price", order: "asc" }.
-       - If user says "expensive", "luxury", "premium" -> set sorting: { field: "price", order: "desc" }.
-       - If user says "best rated" -> set sorting: { field: "rating", order: "desc" }.
-    `;
+	/**
+	 * Initialize the legacy graph (basic filter extraction only)
+	 */
+	private initLegacyGraph() {
+		const workflow = new StateGraph(AgentState)
+			.addNode("extractCategory", (state) => this.extractCategoryNode.execute(state))
+			.addNode("extractBrand", (state) => this.extractBrandNode.execute(state))
+			.addNode("extractPrice", (state) => this.extractPriceNode.execute(state))
+			.addNode("validateAndLog", this.validateAndLogNode)
 
-		const model = this.model.withStructuredOutput(PriceAndSortingSchema);
-		const result = await model.invoke(systemMsg);
+			.addEdge(START, "extractCategory")
+			.addEdge(START, "extractBrand")
+			.addEdge(START, "extractPrice")
 
-		return {
-			extraction: {
-				price: result.price,
-				sorting: result.sorting,
-			},
-		};
-	};
+			.addEdge("extractCategory", "validateAndLog")
+			.addEdge("extractBrand", "validateAndLog")
+			.addEdge("extractPrice", "validateAndLog")
 
-	private validateAndRetrieveAttributesNode = async (state: typeof AgentState.State) => {
+			.addEdge("validateAndLog", END);
+
+		this.legacyGraphRunnable = workflow.compile();
+	}
+
+	/**
+	 * Initialize the full agentic search graph
+	 */
+	private initAgenticGraph() {
+		const workflow = new StateGraph(AgentState)
+			// Stage 1: Parallel filter extraction
+			.addNode("extractCategory", (state) => this.extractCategoryNode.execute(state))
+			.addNode("extractBrand", (state) => this.extractBrandNode.execute(state))
+			.addNode("extractPrice", (state) => this.extractPriceNode.execute(state))
+
+			// Stage 2: Initial search with basic filters
+			.addNode("initialSearch", (state) => this.initialSearchNode.execute(state))
+
+			// Stage 3: Extract common attributes from results
+			.addNode("extractCommonAttributes", (state) => this.extractCommonAttributesNode.execute(state))
+
+			// Stage 4: Map user intent to attribute values
+			.addNode("mapAttributes", (state) => this.mapAttributesNode.execute(state))
+
+			// Stage 5: Final search with all filters
+			.addNode("finalSearch", (state) => this.finalSearchNode.execute(state))
+
+			// Edges: Stage 1 (parallel)
+			.addEdge(START, "extractCategory")
+			.addEdge(START, "extractBrand")
+			.addEdge(START, "extractPrice")
+
+			// Edges: Stage 1 → Stage 2 (all extraction nodes converge to initial search)
+			.addEdge("extractCategory", "initialSearch")
+			.addEdge("extractBrand", "initialSearch")
+			.addEdge("extractPrice", "initialSearch")
+
+			// Edges: Stage 2 → Stage 3 (conditional: skip if no products)
+			.addConditionalEdges(
+				"initialSearch",
+				(state) => {
+					if (state.intermediateProducts.length === 0) {
+						this.logger.log("No products found, ending workflow early");
+						return "end";
+					}
+					return "continue";
+				},
+				{
+					continue: "extractCommonAttributes",
+					end: END,
+				}
+			)
+
+			// Edges: Stage 3 → Stage 4
+			.addEdge("extractCommonAttributes", "mapAttributes")
+
+			// Edges: Stage 4 → Stage 5
+			.addEdge("mapAttributes", "finalSearch")
+
+			// Edges: Stage 5 → END
+			.addEdge("finalSearch", END);
+
+		this.agenticGraphRunnable = workflow.compile();
+	}
+
+	/**
+	 * Simple logging node for legacy graph
+	 */
+	private validateAndLogNode = async (state: typeof AgentState.State) => {
 		const lastMessage = state.messages[state.messages.length - 1].content as string;
 		const extractedInfo = JSON.stringify(state.extraction, null, 2);
-		this.logger.log(`ALL EXTRACTIONS COMPLETE for query: ${lastMessage} ${extractedInfo}`);
-
-		state.availableAttributes.map = [];
-
+		this.logger.log(`Extraction complete for query: "${lastMessage}"`);
+		this.logger.debug(`Extracted filters: ${extractedInfo}`);
 		return {};
 	};
+
+	/**
+	 * Get available attributes for filtering, either from input or by fetching from repository
+	 */
+	private async getAvailableAttributes(provided?: {
+		categories?: string[];
+		brands?: string[];
+	}): Promise<AvailableAttributesContext> {
+		if (provided?.categories && provided?.brands) {
+			return {
+				categories: provided.categories,
+				brands: provided.brands,
+			};
+		}
+
+		// Fetch from a repository
+		const [categories, brands] = await Promise.all([
+			provided?.categories ?? await this.productRepository.getFacetValues("category"),
+			provided?.brands ?? await this.productRepository.getFacetValues("brand"),
+		]);
+
+		return { categories, brands };
+	}
+
+	/**
+	 * Build the final AgenticSearchResult from the graph state
+	 */
+	private buildAgenticResult(state: typeof AgentState.State): AgenticSearchResult {
+		const {
+			extraction,
+			finalResults,
+			searchStatus,
+			discoveredAttributes,
+			attributeFilters,
+			attributeMappingReasoning,
+		} = state;
+
+		return {
+			products: finalResults,
+			status: searchStatus,
+			appliedFilters: {
+				brand: extraction.brand ?? undefined,
+				category: extraction.category ?? undefined,
+				price: extraction.price ?? undefined,
+				sorting: extraction.sorting ?? undefined,
+				attributes: attributeFilters.length > 0 ? attributeFilters : undefined,
+			},
+			discoveredAttributes: discoveredAttributes.length > 0 ? discoveredAttributes : undefined,
+			reasoning: attributeMappingReasoning || undefined,
+		};
+	}
 }
