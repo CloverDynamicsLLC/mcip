@@ -32,9 +32,9 @@ describe("HardFilteringService", () => {
 
 			// 3. Assert
 			if (checkType === "brand") {
-				expect(result.brand).toBe(expectedValue);
+				expect(result.brands).toBe(expectedValue);
 			} else if (checkType === "category") {
-				expect(result.category).toBe(expectedValue);
+				expect(result.categories).toBe(expectedValue);
 			}
 		},
 		30000
