@@ -66,7 +66,12 @@ describe("HardFilteringService - Price & Sorting Logic", () => {
 			// Act
 			const result = await service.agenticSearch({ query });
 
-			console.log(`Query: "${query}"\nPrice:`, result.appliedFilters.price, `\nSorting:`, result.appliedFilters.sorting);
+			console.log(
+				`Query: "${query}"\nPrice:`,
+				result.appliedFilters.price,
+				`\nSorting:`,
+				result.appliedFilters.sorting
+			);
 
 			// Assert Sorting
 			if (expectedSorting === null) {

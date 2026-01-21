@@ -12,8 +12,8 @@ export class IngestionServiceImpl implements IngestionService {
 	private readonly logger = new Logger(IngestionServiceImpl.name);
 
 	constructor(
-		@InjectQueue("product-ingestion") private ingestionQueue: Queue,
-		private configService: ConfigService
+		@InjectQueue("product-ingestion") private readonly ingestionQueue: Queue,
+		private readonly configService: ConfigService
 	) {}
 
 	async syncFromConfig(): Promise<ImportProductsResponseDto> {

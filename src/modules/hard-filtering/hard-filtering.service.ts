@@ -50,7 +50,7 @@ export class HardFilteringService {
 	private readonly finalSearchNode: FinalSearchNode;
 
 	constructor(
-		@Inject(LLM_MODEL) private model: BaseChatModel,
+		@Inject(LLM_MODEL) private readonly model: BaseChatModel,
 		@Inject(PRODUCT_REPOSITORY) private readonly productRepository: ProductRepository,
 		@Inject(VECTORIZATION_SERVICE) private readonly vectorizationService: VectorizationService
 	) {

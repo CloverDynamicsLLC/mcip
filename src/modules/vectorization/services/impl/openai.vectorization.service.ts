@@ -6,9 +6,9 @@ import { UnifiedProduct } from "../../../../domain/product.schema";
 
 @Injectable()
 export class OpenAiVectorizationService implements VectorizationService {
-	private openai: OpenAI;
+	private readonly openai: OpenAI;
 
-	constructor(private configService: ConfigService) {
+	constructor(private readonly configService: ConfigService) {
 		this.openai = new OpenAI({
 			apiKey: this.configService.get<string>("OPENAI_API_KEY"),
 		});

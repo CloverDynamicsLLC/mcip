@@ -9,9 +9,9 @@ import { ExtractedFilters } from "../../interfaces/extracted-filters.interface";
 @Injectable()
 export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 	private readonly logger = new Logger(FeatureExtractionServiceImpl.name);
-	private openai: OpenAI;
+	private readonly openai: OpenAI;
 
-	constructor(private configService: ConfigService) {
+	constructor(private readonly configService: ConfigService) {
 		this.openai = new OpenAI({
 			apiKey: this.configService.get<string>("OPENAI_API_KEY"),
 		});

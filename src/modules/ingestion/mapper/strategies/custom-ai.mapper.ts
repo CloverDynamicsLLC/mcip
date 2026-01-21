@@ -8,9 +8,9 @@ import { ProductMapper } from "../product-mapper.interface";
 @Injectable()
 export class CustomAiMapper implements ProductMapper {
 	private readonly logger = new Logger(CustomAiMapper.name);
-	private openai: OpenAI;
+	private readonly openai: OpenAI;
 
-	constructor(private configService: ConfigService) {
+	constructor(private readonly configService: ConfigService) {
 		this.openai = new OpenAI({
 			apiKey: this.configService.get<string>("OPENAI_API_KEY"),
 		});

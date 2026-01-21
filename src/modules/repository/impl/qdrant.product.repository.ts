@@ -9,10 +9,10 @@ import { generateId } from "../utils/id-generator";
 export class QdrantProductRepository implements ProductRepository, OnModuleInit {
 	private readonly logger = new Logger(QdrantProductRepository.name);
 
-	private client: QdrantClient;
+	private readonly client: QdrantClient;
 	private readonly COLLECTION_NAME = "products";
 
-	constructor(private configService: ConfigService) {
+	constructor(private readonly configService: ConfigService) {
 		this.client = new QdrantClient({
 			url: this.configService.get<string>("QDRANT_URL"),
 		});
