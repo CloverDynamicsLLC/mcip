@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from "@nestjs/common";
 import { QdrantClient } from "@qdrant/js-client-rest";
 import { ConfigService } from "@nestjs/config";
-import { ProductRepository, SearchResult } from "../interfaces/product.repository.interface";
+import { ProductRepository, SearchFilters, SearchResult } from "../interfaces/product.repository.interface";
 import { UnifiedProduct } from "../../../domain/product.schema";
 import { generateId } from "../utils/id-generator";
 
@@ -76,6 +76,27 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 					this.logger.debug(`Index brand: ${error.message}`);
 				}
 
+				// Attribute indexes for nested array filtering
+				try {
+					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+						field_name: "attributes[].name",
+						field_schema: "keyword",
+					});
+					this.logger.log("✓ Index created/verified: attributes[].name (keyword)");
+				} catch (error) {
+					this.logger.debug(`Index attributes[].name: ${error.message}`);
+				}
+
+				try {
+					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+						field_name: "attributes[].value",
+						field_schema: "keyword",
+					});
+					this.logger.log("✓ Index created/verified: attributes[].value (keyword)");
+				} catch (error) {
+					this.logger.debug(`Index attributes[].value: ${error.message}`);
+				}
+
 				this.logger.log("Collection initialization complete");
 				return; // Success
 			} catch (error) {
@@ -117,19 +138,7 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		}));
 	}
 
-	async hybridSearch(
-		queryVector: number[],
-		filters: {
-			brand?: string[];
-			excludeBrand?: string[];
-			category?: string[];
-			excludeCategory?: string[];
-			priceMin?: number;
-			priceMax?: number;
-		},
-		limit = 10,
-		offset = 0
-	): Promise<SearchResult[]> {
+	async hybridSearch(queryVector: number[], filters: SearchFilters, limit = 10, offset = 0): Promise<SearchResult[]> {
 		const must: any[] = [];
 		const must_not: any[] = [];
 
@@ -164,6 +173,23 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 			});
 		}
 
+		// Attribute filters (nested array filtering)
+		if (filters.attributes?.length) {
+			for (const attr of filters.attributes) {
+				must.push({
+					nested: {
+						key: "attributes",
+						filter: {
+							must: [
+								{ key: "attributes[].name", match: { value: attr.name } },
+								{ key: "attributes[].value", match: { any: attr.values } },
+							],
+						},
+					},
+				});
+			}
+		}
+
 		// Build filter object with must and must_not conditions
 		const filter: any = {};
 		if (must.length > 0) filter.must = must;
@@ -183,16 +209,9 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		}));
 	}
 
-	async getFacets(): Promise<{ brands: string[]; categories: string[] }> {
-		const [brandsResult, categoriesResult] = await Promise.all([
-			this.client.facet(this.COLLECTION_NAME, { key: "brand", limit: 100 }),
-			this.client.facet(this.COLLECTION_NAME, { key: "category", limit: 100 }),
-		]);
-
-		return {
-			brands: brandsResult.hits.map((h) => h.value as string),
-			categories: categoriesResult.hits.map((h) => h.value as string),
-		};
+	async getFacetValues(key: string, limit: number = 100): Promise<string[]> {
+		const values = await this.client.facet(this.COLLECTION_NAME, { key, limit });
+		return values.hits.map((h) => h.value as string);
 	}
 
 	async delete(id: string): Promise<void> {
@@ -212,6 +231,8 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 			{ field_name: "price.amount", field_schema: "float" as const },
 			{ field_name: "category", field_schema: "keyword" as const },
 			{ field_name: "brand", field_schema: "keyword" as const },
+			{ field_name: "attributes[].name", field_schema: "keyword" as const },
+			{ field_name: "attributes[].value", field_schema: "keyword" as const },
 		];
 
 		for (const index of indexes) {

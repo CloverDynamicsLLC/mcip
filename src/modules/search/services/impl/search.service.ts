@@ -29,11 +29,12 @@ export class SearchServiceImpl implements SearchService {
 			};
 		}
 
-		// 0. Get available facets (brands, categories) for LLM context
-		const facets = await this.productRepository.getFacets();
+		// 0. Get available facets
+		const availableBrands = await this.productRepository.getFacetValues("brand");
+		const availableCategories = await this.productRepository.getFacetValues("category");
 
 		// 1. Extract filters from query
-		const extracted = await this.featureExtractionService.extractFilters(q, facets.brands, facets.categories);
+		const extracted = await this.featureExtractionService.extractFilters(q, availableBrands, availableCategories);
 
 		const hasFilters =
 			extracted.brand ||
