@@ -9,7 +9,6 @@ import { LLM_MODEL, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../cons
 import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
 import type { VectorizationService } from "../vectorization/services/vectorization.service.interface";
 import { AvailableAttributesContext } from "./schemas/extraction.schema";
-import { SearchCriteria } from "./schemas/search.schema";
 import { AgenticSearchInput, AgenticSearchResult } from "./interfaces/agentic-search-result.interface";
 
 // Nodes
@@ -38,8 +37,7 @@ export class HardFilteringService {
 	private readonly logger = new ConsoleLogger(HardFilteringService.name);
 	private readonly agentLogger = new AgentLogger();
 
-	// Graph instances
-	private legacyGraphRunnable: any;
+	// Graph instance
 	private agenticGraphRunnable: any;
 
 	// Nodes
@@ -65,28 +63,8 @@ export class HardFilteringService {
 		this.mapAttributesNode = new MapAttributesNode(this.model);
 		this.finalSearchNode = new FinalSearchNode(this.productRepository);
 
-		// Initialize graphs
-		this.initLegacyGraph();
+		// Initialize graph
 		this.initAgenticGraph();
-	}
-
-	/**
-	 * Legacy entrypoint for basic filter extraction only.
-	 * Use agenticSearch() for the full workflow.
-	 */
-	async entrypoint(query: string, availableAttributes: AvailableAttributesContext = {}): Promise<SearchCriteria> {
-		const input = {
-			messages: [new HumanMessage(query)],
-			availableAttributes,
-		};
-
-		const config = {
-			callbacks: [this.agentLogger],
-		};
-
-		const result = await this.legacyGraphRunnable.invoke(input, config);
-
-		return result.extraction;
 	}
 
 	/**
@@ -113,30 +91,7 @@ export class HardFilteringService {
 	}
 
 	/**
-	 * Initialize the legacy graph (basic filter extraction only)
-	 */
-	private initLegacyGraph() {
-		const workflow = new StateGraph(AgentState)
-			.addNode("extractCategory", (state) => this.extractCategoryNode.execute(state))
-			.addNode("extractBrand", (state) => this.extractBrandNode.execute(state))
-			.addNode("extractPrice", (state) => this.extractPriceNode.execute(state))
-			.addNode("validateAndLog", this.validateAndLogNode)
-
-			.addEdge(START, "extractCategory")
-			.addEdge(START, "extractBrand")
-			.addEdge(START, "extractPrice")
-
-			.addEdge("extractCategory", "validateAndLog")
-			.addEdge("extractBrand", "validateAndLog")
-			.addEdge("extractPrice", "validateAndLog")
-
-			.addEdge("validateAndLog", END);
-
-		this.legacyGraphRunnable = workflow.compile();
-	}
-
-	/**
-	 * Initialize the full agentic search graph
+	 * Initialize the agentic search graph
 	 */
 	private initAgenticGraph() {
 		const workflow = new StateGraph(AgentState)
@@ -194,17 +149,6 @@ export class HardFilteringService {
 
 		this.agenticGraphRunnable = workflow.compile();
 	}
-
-	/**
-	 * Simple logging node for legacy graph
-	 */
-	private validateAndLogNode = async (state: typeof AgentState.State) => {
-		const lastMessage = state.messages[state.messages.length - 1].content as string;
-		const extractedInfo = JSON.stringify(state.extraction, null, 2);
-		this.logger.log(`Extraction complete for query: "${lastMessage}"`);
-		this.logger.debug(`Extracted filters: ${extractedInfo}`);
-		return {};
-	};
 
 	/**
 	 * Get available attributes for filtering, either from input or by fetching from repository

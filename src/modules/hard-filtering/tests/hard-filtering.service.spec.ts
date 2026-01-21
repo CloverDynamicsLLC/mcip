@@ -4,7 +4,6 @@ import { ConfigModule } from "@nestjs/config";
 import { HardFilteringModule } from "../hard-filtering.module";
 import { categoryBrandTestCases } from "./test-cases/hard-filtering.data";
 import { priceSortingTestCases } from "./test-cases/price-sorting.data";
-import { AvailableAttributesContext } from "../schemas/extraction.schema";
 
 describe("HardFilteringService", () => {
 	let service: HardFilteringService;
@@ -20,21 +19,29 @@ describe("HardFilteringService", () => {
 		"Query: '$query' | Allowed: $allowedValues -> Expect: $expectedValue",
 		async ({ query, checkType, allowedValues, expectedValue }) => {
 			// 1. Prepare Context based on what we are testing
-			const availableAttributes: AvailableAttributesContext = {
+			const availableAttributes = {
 				categories: checkType === "category" ? allowedValues : [],
 				brands: checkType === "brand" ? allowedValues : [],
 			};
 
 			// 2. Act
-			const result = await service.entrypoint(query, availableAttributes);
+			const result = await service.agenticSearch({ query, availableAttributes });
 
-			console.log(`[${checkType}] Allowed: [${allowedValues}] -> Result:`, result);
+			console.log(`[${checkType}] Allowed: [${allowedValues}] -> Result:`, result.appliedFilters);
 
 			// 3. Assert
 			if (checkType === "brand") {
-				expect(result.brands).toBe(expectedValue);
+				if (expectedValue === null) {
+					expect(result.appliedFilters.brands).toBeUndefined();
+				} else {
+					expect(result.appliedFilters.brands).toContain(expectedValue);
+				}
 			} else if (checkType === "category") {
-				expect(result.categories).toBe(expectedValue);
+				if (expectedValue === null) {
+					expect(result.appliedFilters.categories).toBeUndefined();
+				} else {
+					expect(result.appliedFilters.categories).toContain(expectedValue);
+				}
 			}
 		},
 		30000
@@ -57,22 +64,22 @@ describe("HardFilteringService - Price & Sorting Logic", () => {
 		"$scenario: '$query'",
 		async ({ query, expectedPrice, expectedSorting }) => {
 			// Act
-			const result = await service.entrypoint(query);
+			const result = await service.agenticSearch({ query });
 
-			console.log(`Query: "${query}"\nPrice:`, result.price, `\nSorting:`, result.sorting);
+			console.log(`Query: "${query}"\nPrice:`, result.appliedFilters.price, `\nSorting:`, result.appliedFilters.sorting);
 
 			// Assert Sorting
 			if (expectedSorting === null) {
-				expect(result.sorting).toBeNull();
+				expect(result.appliedFilters.sorting).toBeUndefined();
 			} else {
-				expect(result.sorting).toEqual(expectedSorting);
+				expect(result.appliedFilters.sorting).toEqual(expectedSorting);
 			}
 
 			// Assert Price
 			if (expectedPrice === null) {
-				expect(result.price).toBeNull();
+				expect(result.appliedFilters.price).toBeUndefined();
 			} else {
-				expect(result.price).toMatchObject(expectedPrice);
+				expect(result.appliedFilters.price).toMatchObject(expectedPrice);
 			}
 		},
 		30000
