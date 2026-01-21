@@ -28,74 +28,8 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 
 		for (let i = 0; i < retries; i++) {
 			try {
-				const result = await this.client.getCollections();
-				const exists = result.collections.some((c) => c.name === this.COLLECTION_NAME);
-
-				if (!exists) {
-					this.logger.log(`Creating collection '${this.COLLECTION_NAME}'...`);
-					await this.client.createCollection(this.COLLECTION_NAME, {
-						vectors: {
-							size: 1536, // Matches OpenAI 'text-embedding-3-small' dimension
-							distance: "Cosine",
-						},
-					});
-				}
-
-				// Create Payload Indexes for fast filtering
-				// We do this EVERY startup to ensure they exist even if the collection was already there.
-				this.logger.log("Ensuring payload indexes exist...");
-
-				try {
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "price.amount",
-						field_schema: "float",
-					});
-					this.logger.log("✓ Index created/verified: price.amount (float)");
-				} catch (error) {
-					// Index might already exist, which is fine
-					this.logger.debug(`Index price.amount: ${error.message}`);
-				}
-
-				try {
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "category",
-						field_schema: "keyword", // Keyword is required for Facet API
-					});
-					this.logger.log("✓ Index created/verified: category (keyword)");
-				} catch (error) {
-					this.logger.debug(`Index category: ${error.message}`);
-				}
-
-				try {
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "brand",
-						field_schema: "keyword", // Keyword is required for Facet API
-					});
-					this.logger.log("✓ Index created/verified: brand (keyword)");
-				} catch (error) {
-					this.logger.debug(`Index brand: ${error.message}`);
-				}
-
-				// Attribute indexes for nested array filtering
-				try {
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "attributes[].name",
-						field_schema: "keyword",
-					});
-					this.logger.log("✓ Index created/verified: attributes[].name (keyword)");
-				} catch (error) {
-					this.logger.debug(`Index attributes[].name: ${error.message}`);
-				}
-
-				try {
-					await this.client.createPayloadIndex(this.COLLECTION_NAME, {
-						field_name: "attributes[].value",
-						field_schema: "keyword",
-					});
-					this.logger.log("✓ Index created/verified: attributes[].value (keyword)");
-				} catch (error) {
-					this.logger.debug(`Index attributes[].value: ${error.message}`);
-				}
+				await this.ensureCollectionExists();
+				await this.ensureIndexes();
 
 				this.logger.log("Collection initialization complete");
 				return; // Success
@@ -245,5 +179,46 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		}
 
 		this.logger.log("Index recreation complete");
+	}
+
+	private async ensureCollectionExists() {
+		const result = await this.client.getCollections();
+		const exists = result.collections.some((c) => c.name === this.COLLECTION_NAME);
+
+		if (!exists) {
+			this.logger.log(`Creating collection '${this.COLLECTION_NAME}'...`);
+			await this.client.createCollection(this.COLLECTION_NAME, {
+				vectors: {
+					size: 1536, // Matches OpenAI 'text-embedding-3-small' dimension
+					distance: "Cosine",
+				},
+			});
+		}
+	}
+
+	private async ensureIndexes() {
+		this.logger.log("Ensuring payload indexes exist...");
+
+		const indexes = [
+			{ field: "price.amount", schema: "float" },
+			{ field: "category", schema: "keyword" },
+			{ field: "brand", schema: "keyword" },
+			{ field: "attributes[].name", schema: "keyword" },
+			{ field: "attributes[].value", schema: "keyword" },
+		];
+
+		// Process all indexes sequentially or in parallel
+		for (const idx of indexes) {
+			try {
+				await this.client.createPayloadIndex(this.COLLECTION_NAME, {
+					field_name: idx.field,
+					field_schema: idx.schema as any, // Cast if your Qdrant types are strict
+				});
+				this.logger.log(`✓ Index created/verified: ${idx.field} (${idx.schema})`);
+			} catch (error) {
+				// Index might already exist, which is fine
+				this.logger.debug(`Index ${idx.field}: ${error.message}`);
+			}
+		}
 	}
 }

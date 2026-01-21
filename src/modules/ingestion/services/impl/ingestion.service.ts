@@ -38,72 +38,55 @@ export class IngestionServiceImpl implements IngestionService {
 		this.logger.log(`Started importing from: ${url} ${graphqlQuery ? "(GraphQL)" : "(REST)"}`);
 
 		try {
-			let rawData: any;
+			const rawData = graphqlQuery
+				? await this.fetchGraphql(url, graphqlQuery, apiKey)
+				: await this.fetchRest(url, apiKey);
 
-			if (graphqlQuery) {
-				// GraphQL Flow
-				const cleanQuery = graphqlQuery.replace(/\\n/g, "\n");
-
-				const response = await axios.post(
-					url,
-					{
-						query: cleanQuery,
-					},
-					{
-						headers: apiKey
-							? { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
-							: { "Content-Type": "application/json" },
-						timeout: 30000,
-					}
-				);
-
-				// Check for GraphQL errors
-				if (response.data.errors && response.data.errors.length > 0) {
-					this.logger.warn(`GraphQL Errors reported: ${JSON.stringify(response.data.errors)}`);
-				}
-
-				// Standard GraphQL response has 'data' property
-				if (response.data.data) {
-					rawData = response.data.data;
-				} else {
-					// Fallback for non-standard or error-only responses
-					rawData = response.data;
-				}
-			} else {
-				// REST Flow
-				const response = await axios.get(url, {
-					headers: apiKey ? { Authorization: `Bearer ${apiKey}` } : {},
-					timeout: 30000,
-				});
-				rawData = response.data;
-			}
-
-			const products = this.findArray(rawData);
-
-			if (!products) {
-				throw new BadRequestException(
-					"API response does not contain an array of products or could not find one in the response"
-				);
-			}
-
-			await this.processArray(products);
-
-			return {
-				status: "success",
-				message: `Queued ${products.length} products from URL`,
-				count: products.length,
-			};
+			return await this.processRawData(rawData);
 		} catch (error) {
-			if (axios.isAxiosError(error)) {
-				this.logger.error(`Import failed: ${error.message}`);
-				if (error.response) {
-					this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
-				}
-			} else {
-				this.logger.error(`Import failed: ${error.message}`);
-			}
-			throw new BadRequestException(`Failed to fetch data: ${error.message}`);
+			this.handleImportError(error);
 		}
+	}
+
+	private async processRawData(rawData: any): Promise<ImportProductsResponseDto> {
+		const products = this.findArray(rawData);
+
+		if (!products) {
+			throw new BadRequestException(
+				"API response does not contain an array of products or could not find one in the response"
+			);
+		}
+
+		await this.queueProducts(products);
+
+		return {
+			status: "success",
+			message: `Queued ${products.length} products from URL`,
+			count: products.length,
+		};
+	}
+
+	private async fetchGraphql(url: string, graphqlQuery: string, apiKey?: string): Promise<any> {
+		const cleanQuery = graphqlQuery.replace(/\\n/g, "\n");
+
+		const response = await axios.post(
+			url,
+			{
+				query: cleanQuery,
+			},
+			{
+				headers: apiKey
+					? { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
+					: { "Content-Type": "application/json" },
+				timeout: 30000,
+			}
+		);
+
+		if (response.data.errors && response.data.errors.length > 0) {
+			this.logger.warn(`GraphQL Errors reported: ${JSON.stringify(response.data.errors)}`);
+		}
+
+		return response.data.data || response.data;
 	}
 
 	private findArray(obj: any): any[] | null {
@@ -134,7 +117,7 @@ export class IngestionServiceImpl implements IngestionService {
 		return null;
 	}
 
-	private async processArray(products: any[]) {
+	private async queueProducts(products: any[]) {
 		const jobs = products.map((product) => ({
 			name: "process-product",
 			data: product,
@@ -143,5 +126,23 @@ export class IngestionServiceImpl implements IngestionService {
 
 		await this.ingestionQueue.addBulk(jobs);
 		this.logger.log(`Successfully queued ${products.length} items.`);
+	}
+
+	private async fetchRest(url: string, apiKey?: string): Promise<any> {
+		const headers = apiKey ? { Authorization: `Bearer ${apiKey}` } : {};
+		const response = await axios.get(url, { headers, timeout: 30000 });
+		return response.data;
+	}
+
+	private handleImportError(error: any): never {
+		if (axios.isAxiosError(error)) {
+			this.logger.error(`Import failed: ${error.message}`);
+			if (error.response) {
+				this.logger.error(`Response data: ${JSON.stringify(error.response.data)}`);
+			}
+		} else {
+			this.logger.error(`Import failed: ${error.message}`);
+		}
+		throw new BadRequestException(`Failed to fetch data: ${error.message}`);
 	}
 }
