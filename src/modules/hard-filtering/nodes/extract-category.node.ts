@@ -55,6 +55,10 @@ EXAMPLES:
 - "headphones except wireless" → categories: ["Headphones"], excludeCategories: []
 `;
 
+		this.logger.debug(
+			`Available categories before LLM extraction (${validList.length} total): [${validListString}]`
+		);
+
 		const structuredModel = this.model.withStructuredOutput(CategorySchema);
 		const result = await structuredModel.invoke(systemMsg);
 

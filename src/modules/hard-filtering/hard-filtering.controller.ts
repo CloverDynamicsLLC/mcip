@@ -27,31 +27,8 @@ export class HardFilteringController {
 
 		const result = await this.hardFilteringService.agenticSearch({ query });
 
-		this.logger.log(`Agentic search completed: ${result.products.length} products, status: ${result.status}`);
+		this.logger.log(`Agentic search completed: ${result.meta.total} products`);
 
-		return {
-			meta: {
-				count: result.products.length,
-				query,
-				status: result.status,
-				appliedFilters: result.appliedFilters,
-				discoveredAttributes: result.discoveredAttributes,
-				reasoning: result.reasoning,
-			},
-			items: result.products.map((p) => ({
-				score: p.score,
-				product: {
-					externalId: p.product.externalId,
-					url: p.product.url,
-					title: p.product.title,
-					description: p.product.description,
-					brand: p.product.brand,
-					category: p.product.category,
-					price: p.product.price,
-					mainImage: p.product.mainImage,
-					attributes: p.product.attributes,
-				},
-			})),
-		};
+		return result;
 	}
 }

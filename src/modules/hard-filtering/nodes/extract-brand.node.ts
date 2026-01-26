@@ -57,6 +57,8 @@ EXAMPLES:
 - "Nike shoes without Adidas" → brands: ["Nike"], excludeBrands: ["Adidas"]
 `;
 
+		this.logger.debug(`Available brands before LLM extraction (${validList.length} total): [${validListString}]`);
+
 		const structuredModel = this.model.withStructuredOutput(BrandSchema);
 		const result = await structuredModel.invoke(systemMsg);
 

@@ -9,7 +9,8 @@ import { LLM_MODEL, PRODUCT_REPOSITORY, VECTORIZATION_SERVICE } from "../../cons
 import type { ProductRepository } from "../repository/interfaces/product.repository.interface";
 import type { VectorizationService } from "../vectorization/services/vectorization.service.interface";
 import { AvailableAttributesContext } from "./schemas/extraction.schema";
-import { AgenticSearchInput, AgenticSearchResult } from "./interfaces/agentic-search-result.interface";
+import { AgenticSearchInput } from "./interfaces/agentic-search-result.interface";
+import { AgenticSearchResponseDto } from "./dto/agentic-search.dto";
 
 // Nodes
 import {
@@ -67,10 +68,13 @@ export class HardFilteringService {
 		this.initAgenticGraph();
 	}
 
+	/** Maximum number of products to return in response */
+	private readonly MAX_RESULTS = 5;
+
 	/**
 	 * Full agentic search workflow with attribute extraction and mapping.
 	 */
-	async agenticSearch(input: AgenticSearchInput): Promise<AgenticSearchResult> {
+	async agenticSearch(input: AgenticSearchInput): Promise<AgenticSearchResponseDto> {
 		this.logger.log(`Starting agentic search for: "${input.query}"`);
 
 		// Fetch available facets if not provided
@@ -87,7 +91,7 @@ export class HardFilteringService {
 
 		const result = await this.agenticGraphRunnable.invoke(graphInput, config);
 
-		return this.buildAgenticResult(result);
+		return this.buildResponseDto(result, input.query);
 	}
 
 	/**
@@ -174,32 +178,20 @@ export class HardFilteringService {
 	}
 
 	/**
-	 * Build the final AgenticSearchResult from the graph state
+	 * Build the response DTO from the graph state
 	 */
-	private buildAgenticResult(state: typeof AgentState.State): AgenticSearchResult {
-		const {
-			extraction,
-			finalResults,
-			searchStatus,
-			discoveredAttributes,
-			attributeFilters,
-			attributeMappingReasoning,
-		} = state;
+	private buildResponseDto(state: typeof AgentState.State, query: string): AgenticSearchResponseDto {
+		const topProducts = state.finalResults.slice(0, this.MAX_RESULTS);
 
 		return {
-			products: finalResults,
-			status: searchStatus,
-			appliedFilters: {
-				brands: extraction.brands?.length ? extraction.brands : undefined,
-				excludeBrands: extraction.excludeBrands?.length ? extraction.excludeBrands : undefined,
-				categories: extraction.categories?.length ? extraction.categories : undefined,
-				excludeCategories: extraction.excludeCategories?.length ? extraction.excludeCategories : undefined,
-				price: extraction.price ?? undefined,
-				sorting: extraction.sorting ?? undefined,
-				attributes: attributeFilters.length > 0 ? attributeFilters : undefined,
+			meta: {
+				total: topProducts.length,
+				query,
 			},
-			discoveredAttributes: discoveredAttributes.length > 0 ? discoveredAttributes : undefined,
-			reasoning: attributeMappingReasoning || undefined,
+			items: topProducts.map((p) => ({
+				score: p.score,
+				product: p.product,
+			})),
 		};
 	}
 }

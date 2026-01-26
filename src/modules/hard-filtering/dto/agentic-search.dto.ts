@@ -19,33 +19,8 @@ export class AgenticSearchRequestDto {
  */
 export class AgenticSearchResponseDto {
 	meta: {
-		count: number;
+		total: number;
 		query: string;
-		status: "success" | "no_results" | "partial";
-		appliedFilters: {
-			brands?: string[];
-			excludeBrands?: string[];
-			categories?: string[];
-			excludeCategories?: string[];
-			price?: {
-				amount: number;
-				operator: string;
-				maxAmount?: number | null;
-			};
-			sorting?: {
-				field: string;
-				order: string;
-			};
-			attributes?: {
-				name: string;
-				values: string[];
-			}[];
-		};
-		discoveredAttributes?: {
-			key: string;
-			values: string[];
-		}[];
-		reasoning?: string;
 	};
 	items: Array<{
 		score: number;

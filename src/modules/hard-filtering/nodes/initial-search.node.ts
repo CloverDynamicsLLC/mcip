@@ -34,6 +34,10 @@ export class InitialSearchNode extends BaseNode {
 		// Build filters from extraction using shared FilterBuilder
 		const filters = FilterBuilder.fromCriteria(state.extraction);
 		this.logger.debug(`Initial filters: ${JSON.stringify(filters)}`);
+		this.logger.debug(
+			`Extraction state - brands: [${state.extraction.brands?.join(", ") ?? "none"}], ` +
+				`categories: [${state.extraction.categories?.join(", ") ?? "none"}]`
+		);
 
 		// Vectorize the query
 		const queryVector = await this.vectorizationService.embedString(userQuery);
