@@ -88,12 +88,4 @@ export class FilterBuilder {
 			filters.attributes?.length
 		);
 	}
-
-	/**
-	 * Create a copy of filters without attribute filters (for fallback searches)
-	 */
-	static withoutAttributes(filters: SearchFilters): SearchFilters {
-		const { attributes, ...rest } = filters;
-		return rest;
-	}
 }

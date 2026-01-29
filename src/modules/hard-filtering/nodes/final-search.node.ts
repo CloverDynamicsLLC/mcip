@@ -20,7 +20,8 @@ export class FinalSearchNode extends BaseNode {
 	}
 
 	/**
-	 * Execute the final search with all filters (basic + attributes)
+	 * Execute the final search with all filters (basic + attributes).
+	 * Enforces hard constraints - returns zero results if filters don't match.
 	 */
 	async execute(state: typeof AgentState.State) {
 		const { attributeFilters, queryVector, extraction } = state;
@@ -33,34 +34,13 @@ export class FinalSearchNode extends BaseNode {
 
 		const results = await this.productRepository.hybridSearch(queryVector, filters, this.FINAL_SEARCH_LIMIT);
 
-		let searchStatus: SearchStatus = "success";
+		const searchStatus: SearchStatus = results.length === 0 ? "no_results" : "success";
 
 		if (results.length === 0) {
-			this.logger.warn("No products found with all filters");
-
-			// Try fallback: search without attribute filters
-			if (attributeFilters.length > 0) {
-				this.logger.log("Attempting fallback search without attribute filters");
-				const fallbackFilters = FilterBuilder.withoutAttributes(filters);
-				const fallbackResults = await this.productRepository.hybridSearch(
-					queryVector,
-					fallbackFilters,
-					this.FINAL_SEARCH_LIMIT
-				);
-
-				if (fallbackResults.length > 0) {
-					this.logger.log(`Fallback search returned ${fallbackResults.length} products`);
-					return {
-						finalResults: fallbackResults,
-						searchStatus: "partial" as SearchStatus,
-					};
-				}
-			}
-
-			searchStatus = "no_results";
+			this.logger.warn("No products found with all filters - returning zero results (hard constraints enforced)");
+		} else {
+			this.logger.log(`Final search returned ${results.length} products`);
 		}
-
-		this.logger.log(`Final search returned ${results.length} products`);
 
 		return {
 			finalResults: results,
