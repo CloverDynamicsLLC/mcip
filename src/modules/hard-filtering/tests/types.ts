@@ -1,3 +1,5 @@
+import { BrandValidationStatus } from "../schemas/extraction.schema";
+
 export type PriceSortingTestCase = {
 	scenario: string;
 	query: string;
@@ -10,4 +12,16 @@ export type CategoryBrandTestCase = {
 	checkType: "category" | "brand";
 	allowedValues: string[];
 	expectedValue: string | null;
+};
+
+/**
+ * Test case for brand validation scenarios
+ */
+export type BrandValidationTestCase = {
+	scenario: string;
+	query: string;
+	availableBrands: string[];
+	expectedStatus: BrandValidationStatus;
+	expectedBrands: string[];
+	shouldHaveResults: boolean;
 };

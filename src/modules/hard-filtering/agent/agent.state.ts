@@ -5,6 +5,8 @@ import {
 	AttributeFilterSpec,
 	AttributeMap,
 	AvailableAttributesContext,
+	BrandValidationStatus,
+	IntendedBrands,
 	SearchStatus,
 } from "../schemas/extraction.schema";
 import { UnifiedProduct } from "../../../domain/product.schema";
@@ -14,11 +16,12 @@ import { SearchResult } from "../../repository/interfaces/product.repository.int
  * LangGraph Agent State for a multi-stage agentic search workflow.
  *
  * Flow:
- * 1. Extract basic filters (category, brand, price) in parallel
- * 2. Perform initial search with basic filters
- * 3. Extract common attributes from intermediate results
- * 4. Map user intent to attribute values via LLM
- * 5. Execute the final search with all filters
+ * 1. Extract basic filters (category, intended brand, price) in parallel
+ * 2. Validate intended brands against available store brands
+ * 3. Perform initial search with basic filters (or end if brand not found)
+ * 4. Extract common attributes from intermediate results
+ * 5. Map user intent to attribute values via LLM
+ * 6. Execute the final search with all filters
  */
 export const AgentState = Annotation.Root({
 	/** Conversation messages */
@@ -30,6 +33,18 @@ export const AgentState = Annotation.Root({
 	availableAttributes: Annotation<AvailableAttributesContext>({
 		reducer: (x, y) => ({ ...x, ...y }),
 		default: () => ({}),
+	}),
+
+	/** User's intended brands extracted from query (before validation) */
+	intendedBrands: Annotation<IntendedBrands>({
+		reducer: (_, y) => y,
+		default: () => ({ brands: [], excludeBrands: [] }),
+	}),
+
+	/** Status of brand validation against available store brands */
+	brandValidationStatus: Annotation<BrandValidationStatus>({
+		reducer: (_, y) => y,
+		default: () => "no_brand_specified",
 	}),
 
 	/** Extracted basic filters (category, brand, price, sorting) */

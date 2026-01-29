@@ -1,4 +1,4 @@
-﻿import { z } from "zod";
+import { z } from "zod";
 
 export const SortingSchema = z.object({
 	field: z.enum(["price"]).describe("Field to sort by"),
@@ -23,6 +23,15 @@ export const CategorySchema = z.object({
 export const BrandSchema = z.object({
 	brands: z.array(z.string()).describe("Brands to INCLUDE in search results. MUST be from available list."),
 	excludeBrands: z.array(z.string()).describe("Brands to EXCLUDE from search results. MUST be from available list."),
+});
+
+/**
+ * Schema for intended brand extraction (without restricting to available list)
+ * Used in the first step of two-step brand extraction
+ */
+export const IntendedBrandSchema = z.object({
+	brands: z.array(z.string()).describe("Brands the user wants to INCLUDE in search results."),
+	excludeBrands: z.array(z.string()).describe("Brands the user wants to EXCLUDE from search results."),
 });
 
 export const PriceAndSortingSchema = z.object({

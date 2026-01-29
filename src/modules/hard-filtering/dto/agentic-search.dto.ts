@@ -1,4 +1,5 @@
 import { IsInt, IsNotEmpty, IsOptional, IsString, Min } from "class-validator";
+import { AppliedFilters } from "../interfaces/agentic-search-result.interface";
 
 /**
  * Request DTO for agentic search endpoint
@@ -42,4 +43,6 @@ export class AgenticSearchResponseDto {
 			}>;
 		};
 	}>;
+	/** All filters that were applied during search */
+	appliedFilters: AppliedFilters;
 }

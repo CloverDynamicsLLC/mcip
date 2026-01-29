@@ -1,5 +1,5 @@
 import { SearchResult } from "../../repository/interfaces/product.repository.interface";
-import { AttributeFilterSpec, AttributeMap, SearchStatus } from "../schemas/extraction.schema";
+import { AttributeFilterSpec, AttributeMap, BrandValidationStatus, SearchStatus } from "../schemas/extraction.schema";
 
 /**
  * Complete result from the agentic search workflow
@@ -52,6 +52,9 @@ export interface AppliedFilters {
 
 	/** Attribute filters from LLM mapping */
 	attributes?: AttributeFilterSpec[];
+
+	/** Brand validation status - indicates if user's intended brands were found in store */
+	brandValidationStatus?: BrandValidationStatus;
 }
 
 /**
