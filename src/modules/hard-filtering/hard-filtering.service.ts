@@ -15,13 +15,11 @@ import { AgenticSearchResponseDto } from "./dto/agentic-search.dto";
 // Nodes
 import {
 	ExtractCategoryNode,
-	ExtractCommonAttributesNode,
 	ExtractIntendedBrandNode,
 	ExtractPriceNode,
-	FinalSearchNode,
 	InitialSearchNode,
-	MapAttributesNode,
 	ValidateBrandsNode,
+	LlmVerificationNode,
 } from "./nodes";
 
 /**
@@ -30,10 +28,8 @@ import {
  * Flow:
  * 1. Extract basic filters (category, intended brand, price) in parallel
  * 2. Validate intended brands against available store brands
- * 3. Perform initial search with basic filters (or end if brand not found)
- * 4. Extract common attributes from intermediate results
- * 5. Map user intent to attribute values via LLM
- * 6. Execute the final search with all filters
+ * 3. Perform search with basic filters (or end if brand not found)
+ * 4. Verify results using LLM to filter by semantic relevance
  */
 @Injectable()
 export class HardFilteringService {
@@ -49,9 +45,7 @@ export class HardFilteringService {
 	private readonly validateBrandsNode: ValidateBrandsNode;
 	private readonly extractPriceNode: ExtractPriceNode;
 	private readonly initialSearchNode: InitialSearchNode;
-	private readonly extractCommonAttributesNode: ExtractCommonAttributesNode;
-	private readonly mapAttributesNode: MapAttributesNode;
-	private readonly finalSearchNode: FinalSearchNode;
+	private readonly llmVerificationNode: LlmVerificationNode;
 
 	constructor(
 		@Inject(LLM_MODEL) private readonly model: BaseChatModel,
@@ -64,9 +58,7 @@ export class HardFilteringService {
 		this.validateBrandsNode = new ValidateBrandsNode();
 		this.extractPriceNode = new ExtractPriceNode(this.model);
 		this.initialSearchNode = new InitialSearchNode(this.productRepository, this.vectorizationService);
-		this.extractCommonAttributesNode = new ExtractCommonAttributesNode();
-		this.mapAttributesNode = new MapAttributesNode(this.model);
-		this.finalSearchNode = new FinalSearchNode(this.productRepository);
+		this.llmVerificationNode = new LlmVerificationNode(this.model);
 
 		// Initialize graph
 		this.initAgenticGraph();
@@ -111,17 +103,11 @@ export class HardFilteringService {
 			// Stage 2: Validate brands against available store brands
 			.addNode("validateBrands", (state) => this.validateBrandsNode.execute(state))
 
-			// Stage 3: Initial search with basic filters
-			.addNode("initialSearch", (state) => this.initialSearchNode.execute(state))
+			// Stage 3: Search with basic filters
+			.addNode("search", (state) => this.initialSearchNode.execute(state))
 
-			// Stage 4: Extract common attributes from results
-			.addNode("extractCommonAttributes", (state) => this.extractCommonAttributesNode.execute(state))
-
-			// Stage 5: Map user intent to attribute values
-			.addNode("mapAttributes", (state) => this.mapAttributesNode.execute(state))
-
-			// Stage 6: Final search with all filters
-			.addNode("finalSearch", (state) => this.finalSearchNode.execute(state))
+			// Stage 4: LLM verification of results
+			.addNode("llmVerification", (state) => this.llmVerificationNode.execute(state))
 
 			// Edges: Stage 1 (parallel extraction)
 			.addEdge(START, "extractCategory")
@@ -144,35 +130,29 @@ export class HardFilteringService {
 					return "continue";
 				},
 				{
-					continue: "initialSearch",
+					continue: "search",
 					end: END,
 				}
 			)
 
 			// Edges: Stage 3 → Stage 4 (conditional: skip if no products)
 			.addConditionalEdges(
-				"initialSearch",
+				"search",
 				(state) => {
-					if (state.intermediateProducts.length === 0) {
+					if (state.finalResults.length === 0) {
 						this.logger.log("No products found, ending workflow early");
 						return "end";
 					}
 					return "continue";
 				},
 				{
-					continue: "extractCommonAttributes",
+					continue: "llmVerification",
 					end: END,
 				}
 			)
 
-			// Edges: Stage 4 → Stage 5
-			.addEdge("extractCommonAttributes", "mapAttributes")
-
-			// Edges: Stage 5 → Stage 6
-			.addEdge("mapAttributes", "finalSearch")
-
-			// Edges: Stage 6 → END
-			.addEdge("finalSearch", END);
+			// Edges: Stage 4 → END
+			.addEdge("llmVerification", END);
 
 		this.agenticGraphRunnable = workflow.compile();
 	}

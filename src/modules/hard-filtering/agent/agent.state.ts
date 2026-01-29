@@ -94,4 +94,10 @@ export const AgentState = Annotation.Root({
 		reducer: (_, y) => y,
 		default: () => "",
 	}),
+
+	/** LLM reasoning for product verification (for debugging/transparency) */
+	llmVerificationReasoning: Annotation<string>({
+		reducer: (_, y) => y,
+		default: () => "",
+	}),
 });
