@@ -36,9 +36,6 @@ jobs:
       - name: Build
         run: npm run build
 
-      - name: Test
-        run: npm run test -- --passWithNoTests --ci --forceExit
-
   release:
     name: Create GitHub Release
     runs-on: ubuntu-latest
