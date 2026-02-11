@@ -11,27 +11,27 @@ import { SearchResult } from "../../repository/interfaces/product.repository.int
  */
 @Injectable()
 export class LlmVerificationNode extends BaseNode {
-    protected readonly logger = new Logger(LlmVerificationNode.name);
+	protected readonly logger = new Logger(LlmVerificationNode.name);
 
-    constructor(private readonly model: BaseChatModel) {
-        super();
-    }
+	constructor(private readonly model: BaseChatModel) {
+		super();
+	}
 
-    /**
-     * Use LLM to verify which products actually match the user's intent
-     */
-    async execute(state: typeof AgentState.State) {
-        const userQuery = this.getUserQuery(state);
-        const candidates = state.finalResults;
+	/**
+	 * Use LLM to verify which products actually match the user's intent
+	 */
+	async execute(state: typeof AgentState.State) {
+		const userQuery = this.getUserQuery(state);
+		const candidates = state.finalResults;
 
-        if (candidates.length === 0) {
-            this.logger.debug("No candidates to verify, skipping LLM verification");
-            return { finalResults: [], llmVerificationReasoning: "No products to verify" };
-        }
+		if (candidates.length === 0) {
+			this.logger.debug("No candidates to verify, skipping LLM verification");
+			return { finalResults: [], llmVerificationReasoning: "No products to verify" };
+		}
 
-        const productsContext = this.formatProductsForPrompt(candidates);
+		const productsContext = this.formatProductsForPrompt(candidates);
 
-        const systemMsg = `You are a product attribute validator for an e-commerce search system.
+		const systemMsg = `You are a product attribute validator for an e-commerce search system.
 
 User Query: "${userQuery}"
 
@@ -65,45 +65,49 @@ Return the IDs of products that pass the attribute filters. If no explicit attri
 IMPORTANT: Return product IDs exactly as provided. Do not invent or modify IDs.
 `;
 
-        try {
-            const structuredModel = this.model.withStructuredOutput(ProductVerificationSchema);
-            const result = await structuredModel.invoke(systemMsg);
+		try {
+			const structuredModel = this.model.withStructuredOutput(ProductVerificationSchema);
+			const result = await structuredModel.invoke(systemMsg);
 
-            // Filter to only valid IDs that exist in candidates
-            const candidateIds = new Set(candidates.map((c) => c.product.externalId));
-            const validIds = result.validProductIds.filter((id) => candidateIds.has(id));
+			// Filter to only valid IDs that exist in candidates
+			const candidateIds = new Set(candidates.map((c) => c.product.externalId));
+			const validIds = (result.validProductIds as string[]).filter((id) => candidateIds.has(id));
 
-            // Rebuild finalResults with only verified products
-            const verifiedResults = candidates.filter((c) => validIds.includes(c.product.externalId));
+			// Rebuild finalResults with only verified products
+			const verifiedResults = candidates.filter((c) => validIds.includes(c.product.externalId));
 
-            this.logger.log(`LLM verification: ${verifiedResults.length}/${candidates.length} products passed`);
-            this.logger.debug(`Reasoning: ${result.reasoning}`);
+			this.logger.log(`LLM verification: ${verifiedResults.length}/${candidates.length} products passed`);
+			this.logger.debug(`Reasoning: ${result.reasoning}`);
 
-            return {
-                finalResults: verifiedResults,
-                llmVerificationReasoning: result.reasoning,
-            };
-        } catch (error) {
-            this.logger.error(`LLM verification failed: ${error.message}`);
-            // On failure, return all candidates (fail-open)
-            return {
-                finalResults: candidates,
-                llmVerificationReasoning: `Verification failed: ${error.message}`,
-            };
-        }
-    }
+			return {
+				finalResults: verifiedResults,
+				llmVerificationReasoning: result.reasoning,
+			};
+		} catch (error) {
+			this.logger.error(`LLM verification failed: ${error.message}`);
+			// On failure, return all candidates (fail-open)
+			return {
+				finalResults: candidates,
+				llmVerificationReasoning: `Verification failed: ${error.message}`,
+			};
+		}
+	}
 
-    /**
-     * Format products into a concise prompt format
-     */
-    private formatProductsForPrompt(results: SearchResult[]): string {
-        return results
-            .map((r) => {
-                const p = r.product;
-                const attrs = p.attributes?.slice(0, 5).map((a) => `${a.name}: ${a.value}`).join(", ") ?? "";
-                const priceStr = p.price ? `${p.price.amount} ${p.price.currency}` : "N/A";
-                return `ID: ${p.externalId} | Title: ${p.title} | Brand: ${p.brand ?? "N/A"} | Category: ${p.category ?? "N/A"} | Price: ${priceStr} | Attrs: [${attrs}]`;
-            })
-            .join("\n");
-    }
+	/**
+	 * Format products into a concise prompt format
+	 */
+	private formatProductsForPrompt(results: SearchResult[]): string {
+		return results
+			.map((r) => {
+				const p = r.product;
+				const attrs =
+					p.attributes
+						?.slice(0, 5)
+						.map((a) => `${a.name}: ${a.value}`)
+						.join(", ") ?? "";
+				const priceStr = p.price ? `${p.price.amount} ${p.price.currency}` : "N/A";
+				return `ID: ${p.externalId} | Title: ${p.title} | Brand: ${p.brand ?? "N/A"} | Category: ${p.category ?? "N/A"} | Price: ${priceStr} | Attrs: [${attrs}]`;
+			})
+			.join("\n");
+	}
 }

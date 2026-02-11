@@ -63,8 +63,8 @@ EXAMPLES:
 		const result = await structuredModel.invoke(systemMsg);
 
 		// Validate against available categories
-		const validCategories = this.validateCategories(result.categories, validList);
-		const validExcludeCategories = this.validateCategories(result.excludeCategories, validList);
+		const validCategories = this.validateCategories(result.categories as string[], validList);
+		const validExcludeCategories = this.validateCategories(result.excludeCategories as string[], validList);
 
 		// Ensure no overlap
 		const excludeSet = new Set(validExcludeCategories);

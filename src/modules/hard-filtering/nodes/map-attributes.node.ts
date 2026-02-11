@@ -66,7 +66,12 @@ IMPORTANT: Only return mappings where you have medium or high confidence.
 			const result = await structuredModel.invoke(systemMsg);
 
 			// Filter to keep only high/medium confidence mappings with non-empty values
-			const attributeFilters: AttributeFilterSpec[] = result.mappings
+			const mappings = result.mappings as Array<{
+				attributeName: string;
+				selectedValues: string[];
+				confidence: string;
+			}>;
+			const attributeFilters: AttributeFilterSpec[] = mappings
 				.filter(
 					(m) =>
 						m.confidence !== "low" &&

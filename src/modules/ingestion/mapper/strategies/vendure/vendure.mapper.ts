@@ -235,7 +235,7 @@ export class VendureMapper implements ProductMapper {
 		const safeCode = (code || "UAH").toUpperCase();
 		const options = CurrencyEnum.options;
 
-		if (options.includes(safeCode as any)) {
+		if ((options as readonly string[]).includes(safeCode)) {
 			return safeCode as "UAH" | "USD" | "EUR";
 		}
 		return "UAH";

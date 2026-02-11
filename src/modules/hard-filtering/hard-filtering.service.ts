@@ -87,7 +87,7 @@ export class HardFilteringService {
 
 		const result = await this.agenticGraphRunnable.invoke(graphInput, config);
 
-		return this.buildResponseDto(result, input.query);
+		return this.buildResponseDto(result as typeof AgentState.State, input.query);
 	}
 
 	/**

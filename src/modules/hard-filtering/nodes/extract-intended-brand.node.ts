@@ -68,8 +68,8 @@ EXAMPLES:
 		const result = await structuredModel.invoke(systemMsg);
 
 		// Ensure no overlap between include and exclude
-		const excludeSet = new Set(result.excludeBrands);
-		const finalBrands = result.brands.filter((b) => !excludeSet.has(b));
+		const excludeSet = new Set(result.excludeBrands as string[]);
+		const finalBrands = (result.brands as string[]).filter((b) => !excludeSet.has(b));
 
 		this.logger.debug(
 			`Extracted intended brands: [${finalBrands.join(", ")}], excluded: [${result.excludeBrands.join(", ")}]`

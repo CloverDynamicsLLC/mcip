@@ -89,27 +89,28 @@ export class IngestionServiceImpl implements IngestionService {
 		return response.data.data || response.data;
 	}
 
-	private findArray(obj: any): any[] | null {
+	private findArray(obj: Record<string, unknown> | unknown): unknown[] | null {
 		if (Array.isArray(obj)) {
-			return obj;
+			return obj as unknown[];
 		}
 
 		if (obj && typeof obj === "object") {
+			const record = obj as Record<string, unknown>;
 			// Prioritize known collection keys
-			if (Array.isArray(obj.products)) return obj.products;
-			if (Array.isArray(obj.items)) return obj.items;
-			if (Array.isArray(obj.nodes)) return obj.nodes;
-			if (Array.isArray(obj.edges)) {
+			if (Array.isArray(record.products)) return record.products as unknown[];
+			if (Array.isArray(record.items)) return record.items as unknown[];
+			if (Array.isArray(record.nodes)) return record.nodes as unknown[];
+			if (Array.isArray(record.edges)) {
 				// Handle Relay-style edges { node: ... }
-				return obj.edges.map((edge: any) => edge.node);
+				return (record.edges as Array<Record<string, unknown>>).map((edge) => edge.node);
 			}
 
 			// Recursive search
-			for (const key of Object.keys(obj)) {
+			for (const key of Object.keys(record)) {
 				// Skip common metadata or error keys to avoid false positives
 				if (["errors", "extensions", "pageInfo", "meta"].includes(key)) continue;
 
-				const result = this.findArray(obj[key]);
+				const result = this.findArray(record[key]);
 				if (result) return result;
 			}
 		}

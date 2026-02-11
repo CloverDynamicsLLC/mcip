@@ -36,7 +36,7 @@ export class InitialSearchNode extends BaseNode {
 		this.logger.debug(`Filters: ${JSON.stringify(filters)}`);
 		this.logger.debug(
 			`Extraction state - brands: [${state.extraction.brands?.join(", ") ?? "none"}], ` +
-			`categories: [${state.extraction.categories?.join(", ") ?? "none"}]`
+				`categories: [${state.extraction.categories?.join(", ") ?? "none"}]`
 		);
 
 		// Vectorize the query

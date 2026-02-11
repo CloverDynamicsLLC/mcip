@@ -125,7 +125,7 @@ export class QdrantProductRepository implements ProductRepository, OnModuleInit 
 		}
 
 		// Build filter object with must and must_not conditions
-		const filter: any = {};
+		const filter: Record<string, unknown> = {};
 		if (must.length > 0) filter.must = must;
 		if (must_not.length > 0) filter.must_not = must_not;
 
