@@ -38,11 +38,26 @@ export class IngestionServiceImpl implements IngestionService {
 		this.logger.log(`Started importing from: ${url} ${graphqlQuery ? "(GraphQL)" : "(REST)"}`);
 
 		try {
-			const rawData = graphqlQuery
-				? await this.fetchGraphql(url, graphqlQuery, apiKey)
-				: await this.fetchRest(url, apiKey);
+			if (graphqlQuery) {
+				const products = await this.fetchGraphqlPaginated(url, graphqlQuery, apiKey);
 
-			return await this.processRawData(rawData);
+				if (!products.length) {
+					throw new BadRequestException(
+						"API response does not contain an array of products or could not find one in the response"
+					);
+				}
+
+				await this.queueProducts(products);
+
+				return {
+					status: "success",
+					message: `Queued ${products.length} products from URL`,
+					count: products.length,
+				};
+			} else {
+				const rawData = await this.fetchRest(url, apiKey);
+				return await this.processRawData(rawData);
+			}
 		} catch (error) {
 			this.handleImportError(error);
 		}
@@ -66,27 +81,102 @@ export class IngestionServiceImpl implements IngestionService {
 		};
 	}
 
-	private async fetchGraphql(url: string, graphqlQuery: string, apiKey?: string): Promise<any> {
+	private async fetchGraphql(
+		url: string,
+		graphqlQuery: string,
+		apiKey?: string,
+		variables?: Record<string, unknown>
+	): Promise<any> {
 		const cleanQuery = graphqlQuery.replace(/\\n/g, "\n");
 
-		const response = await axios.post(
-			url,
-			{
-				query: cleanQuery,
-			},
-			{
-				headers: apiKey
-					? { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
-					: { "Content-Type": "application/json" },
-				timeout: 30000,
-			}
-		);
+		const body: Record<string, unknown> = { query: cleanQuery };
+		if (variables && Object.keys(variables).length > 0) {
+			body.variables = variables;
+		}
+
+		const response = await axios.post(url, body, {
+			headers: apiKey
+				? { Authorization: `Bearer ${apiKey}`, "Content-Type": "application/json" }
+				: { "Content-Type": "application/json" },
+			timeout: 30000,
+		});
 
 		if (response.data.errors && response.data.errors.length > 0) {
 			this.logger.warn(`GraphQL Errors reported: ${JSON.stringify(response.data.errors)}`);
 		}
 
 		return response.data.data || response.data;
+	}
+
+	private detectPaginationMode(query: string): "variables" | "inline" | "none" {
+		if (/\$take\s*:\s*Int/i.test(query) && /\$skip\s*:\s*Int/i.test(query)) {
+			return "variables";
+		}
+		if (/take\s*:\s*\d+/.test(query)) {
+			return "inline";
+		}
+		return "none";
+	}
+
+	private async fetchGraphqlPaginated(url: string, graphqlQuery: string, apiKey?: string): Promise<unknown[]> {
+		const cleanQuery = graphqlQuery.replace(/\\n/g, "\n");
+		const PAGE_SIZE = 100;
+
+		const mode = this.detectPaginationMode(cleanQuery);
+
+		if (mode === "none") {
+			const data = await this.fetchGraphql(url, graphqlQuery, apiKey);
+			const items = this.findArray(data);
+			return items || [];
+		}
+
+		const take =
+			mode === "inline"
+				? parseInt(cleanQuery.match(/take\s*:\s*(\d+)/)?.[1] || String(PAGE_SIZE), 10)
+				: PAGE_SIZE;
+
+		let queryTemplate = cleanQuery;
+		if (mode === "inline") {
+			const hasSkip = /skip\s*:\s*\d+/.test(cleanQuery);
+			if (!hasSkip) {
+				queryTemplate = cleanQuery.replace(/take\s*:\s*\d+/, `take: ${take}, skip: 0`);
+			}
+		}
+
+		let allProducts: unknown[] = [];
+		let skip = 0;
+		let hasMore = true;
+
+		while (hasMore) {
+			this.logger.log(`Fetching page ${Math.floor(skip / take) + 1} (skip: ${skip}, take: ${take})...`);
+
+			let data: any;
+			if (mode === "variables") {
+				data = await this.fetchGraphql(url, queryTemplate, apiKey, { take, skip });
+			} else {
+				const paginatedQuery = queryTemplate.replace(/skip\s*:\s*\d+/, `skip: ${skip}`);
+				data = await this.fetchGraphql(url, paginatedQuery, apiKey);
+			}
+
+			const pageItems = this.findArray(data);
+
+			if (!pageItems || pageItems.length === 0) {
+				break;
+			}
+
+			allProducts = allProducts.concat(pageItems);
+			this.logger.log(
+				`Fetched page ${Math.floor(skip / take) + 1}: ${pageItems.length} items (total so far: ${allProducts.length})`
+			);
+
+			if (pageItems.length < take) {
+				hasMore = false;
+			} else {
+				skip += take;
+			}
+		}
+
+		return allProducts;
 	}
 
 	private findArray(obj: Record<string, unknown> | unknown): unknown[] | null {
