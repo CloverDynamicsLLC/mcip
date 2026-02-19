@@ -1,9 +1,10 @@
 interface VendureAsset {
+	id?: string;
 	name: string;
-	type: string;
-	mimeType: string;
+	type?: string;
+	mimeType?: string;
 	source: string;
-	preview: string;
+	preview?: string;
 }
 
 interface VendureFacetValue {
@@ -14,19 +15,28 @@ interface VendureFacetValue {
 }
 
 interface VendureCollection {
+	id?: string;
 	name: string;
-	slug: string;
+	slug?: string;
+}
+
+interface VendureCustomFields {
+	rating?: number | null;
+	tags?: string | null;
+	discountType?: string | null;
+	discountValue?: number | null;
 }
 
 interface VendureVariant {
 	id: string;
-	productId: string;
+	productId?: string;
 	sku: string;
 	name: string;
 	price: number;
-	currencyCode: string;
+	currencyCode?: string;
 	priceWithTax: number;
-	stockLevel: string | number;
+	priceWithTaxInLocalCurrency?: number;
+	stockLevel?: string | number;
 	options?: {
 		code: string;
 		name: string;
@@ -39,10 +49,11 @@ export interface VendureProduct {
 	name: string;
 	slug: string;
 	description: string;
-	enabled: boolean;
+	enabled?: boolean;
 	assets: VendureAsset[];
 	variants: VendureVariant[];
-	facetValues: VendureFacetValue[];
+	facetValues?: VendureFacetValue[];
 	collections: VendureCollection[];
-	featuredAsset?: VendureAsset;
+	featuredAsset?: VendureAsset & { id?: string };
+	customFields?: VendureCustomFields;
 }

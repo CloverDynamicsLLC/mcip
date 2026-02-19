@@ -79,6 +79,12 @@ export class SearchServiceImpl implements SearchService {
 				skip
 			);
 			filteringStatus = FilteringStatus.AI_FILTERED;
+
+			if (results.length === 0) {
+				this.logger.warn("Hybrid search returned 0 results, falling back to vector search");
+				results = await this.productRepository.search(queryVector, take, skip);
+				filteringStatus = FilteringStatus.RAG_ONLY;
+			}
 		} else {
 			// 4. Standard RAG Search
 			this.logger.log(`Performing Standard RAG Search...`);
