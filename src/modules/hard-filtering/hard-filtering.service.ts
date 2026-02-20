@@ -95,50 +95,47 @@ export class HardFilteringService {
 	 */
 	private initAgenticGraph() {
 		const workflow = new StateGraph(AgentState)
-			// // Stage 1: Parallel filter extraction
-			// .addNode("extractCategory", (state) => this.extractCategoryNode.execute(state))
-			// .addNode("extractIntendedBrand", (state) => this.extractIntendedBrandNode.execute(state))
-			// .addNode("extractPrice", (state) => this.extractPriceNode.execute(state))
+			// Stage 1: Parallel filter extraction
+			.addNode("extractCategory", (state) => this.extractCategoryNode.execute(state))
+			.addNode("extractIntendedBrand", (state) => this.extractIntendedBrandNode.execute(state))
+			.addNode("extractPrice", (state) => this.extractPriceNode.execute(state))
 
-			// // Stage 2: Validate brands against available store brands
-			// .addNode("validateBrands", (state) => this.validateBrandsNode.execute(state))
+			// Stage 2: Validate brands against available store brands
+			.addNode("validateBrands", (state) => this.validateBrandsNode.execute(state))
 
-			// Stage 3: RAG search (pure vector search, no extracted filters)
+			// Stage 3: Search with basic filters
 			.addNode("search", (state) => this.initialSearchNode.execute(state))
 
 			// Stage 4: LLM verification of results
 			.addNode("llmVerification", (state) => this.llmVerificationNode.execute(state))
 
-			// Direct entry: START → search
-			.addEdge(START, "search")
+			// Edges: Stage 1 (parallel extraction)
+			.addEdge(START, "extractCategory")
+			.addEdge(START, "extractIntendedBrand")
+			.addEdge(START, "extractPrice")
 
-			// // Edges: Stage 1 (parallel extraction)
-			// .addEdge(START, "extractCategory")
-			// .addEdge(START, "extractIntendedBrand")
-			// .addEdge(START, "extractPrice")
+			// Edges: Stage 1 → Stage 2 (all extraction nodes converge to validateBrands)
+			.addEdge("extractCategory", "validateBrands")
+			.addEdge("extractIntendedBrand", "validateBrands")
+			.addEdge("extractPrice", "validateBrands")
 
-			// // Edges: Stage 1 → Stage 2 (all extraction nodes converge to validateBrands)
-			// .addEdge("extractCategory", "validateBrands")
-			// .addEdge("extractIntendedBrand", "validateBrands")
-			// .addEdge("extractPrice", "validateBrands")
+			// Edges: Stage 2 → Stage 3 (conditional: end if brand not found)
+			.addConditionalEdges(
+				"validateBrands",
+				(state) => {
+					if (state.brandValidationStatus === "not_found") {
+						this.logger.log("User requested brand(s) not in store, returning zero results");
+						return "end";
+					}
+					return "continue";
+				},
+				{
+					continue: "search",
+					end: END,
+				}
+			)
 
-			// // Edges: Stage 2 → Stage 3 (conditional: end if brand not found)
-			// .addConditionalEdges(
-			// 	"validateBrands",
-			// 	(state) => {
-			// 		if (state.brandValidationStatus === "not_found") {
-			// 			this.logger.log("User requested brand(s) not in store, returning zero results");
-			// 			return "end";
-			// 		}
-			// 		return "continue";
-			// 	},
-			// 	{
-			// 		continue: "search",
-			// 		end: END,
-			// 	}
-			// )
-
-			// Edges: search → LLM verification (conditional: skip if no products)
+			// Edges: Stage 3 → Stage 4 (conditional: skip if no products)
 			.addConditionalEdges(
 				"search",
 				(state) => {
@@ -154,7 +151,7 @@ export class HardFilteringService {
 				}
 			)
 
-			// Edges: LLM verification → END
+			// Edges: Stage 4 → END
 			.addEdge("llmVerification", END);
 
 		this.agenticGraphRunnable = workflow.compile();

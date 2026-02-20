@@ -32,19 +32,6 @@ export class ValidateBrandsNode extends BaseNode {
 				`against available: [${availableBrands.join(", ")}]`
 		);
 
-		// If the store has no brand data at all, brand filtering is not possible —
-		// treat as if no brand was specified so the search continues normally
-		if (availableBrands.length === 0) {
-			this.logger.debug("Store has no brand data, skipping brand validation");
-			return {
-				brandValidationStatus: "no_brand_specified" as BrandValidationStatus,
-				extraction: {
-					brands: [],
-					excludeBrands: [],
-				},
-			};
-		}
-
 		// If user didn't specify any brands, no validation needed
 		if (intendedBrands.brands.length === 0 && intendedBrands.excludeBrands.length === 0) {
 			this.logger.debug("No brands specified by user, skipping validation");

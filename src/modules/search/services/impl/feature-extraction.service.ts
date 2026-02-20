@@ -64,26 +64,29 @@ export class FeatureExtractionServiceImpl implements FeatureExtractionService {
 						role: "system",
 						content: `
               You are a search query understander for an e-commerce store.
-              Extract filters and clean the search query.
+              Extract filters and clean the search query. You MUST detect both INCLUSION and EXCLUSION patterns.
 
-              Available Categories: ${availableCategories.join(", ") || "(none)"}
+              Available Brands: ${availableBrands.join(", ")}
+              Available Categories: ${availableCategories.join(", ")}
 
               Rules:
-              1. INCLUSION: Detect categories the user wants (e.g., "laptops", "phones").
-              2. EXCLUSION: Detect categories the user wants to EXCLUDE using patterns like:
-                 - "but not [category]"
-                 - "except [category]"
-                 - "without [category]"
-              3. Map all category mentions to EXACT strings from the available list.
-              4. Extract price ranges ONLY when the user explicitly states a price constraint (e.g. "under 500", "cheaper than 1000", "від 200 до 500").
+              1. INCLUSION: Detect brands/categories the user wants (e.g., "Nike shoes", "Apple laptops")
+              2. EXCLUSION: Detect brands/categories the user wants to EXCLUDE using patterns like:
+                 - "but not [brand]"
+                 - "except [brand]"
+                 - "without [brand]"
+                 - "no [brand]"
+                 - "everything except [brand]"
+                 - "all brands but [brand]"
+              3. Map all brand/category mentions to EXACT strings from the available lists.
+              4. Extract price ranges (greater than, less than, between).
               5. 'searchQuery' should be the remaining keywords after extracting all filters.
-              6. CONSERVATIVE RULE: Only set a filter field when you are highly confident the user explicitly requested it. If the user does not mention a category or price — leave those fields null. Do NOT guess or infer filters from general product descriptions.
-              7. If the available categories list is empty, leave category and excludeCategory null.
-
+              
               Examples:
-              - "laptops except phones" → category: ["Laptops"], excludeCategory: ["Phones"], searchQuery: ""
-              - "phones under $500" → category: ["Phones"], priceMax: 500, searchQuery: ""
-              - "вакуумна піч" → category: null, priceMin: null, priceMax: null, searchQuery: "вакуумна піч"
+              - "Nike shoes" → brand: ["Nike"], searchQuery: "shoes"
+              - "shoes but not Nike" → excludeBrand: ["Nike"], searchQuery: "shoes"
+              - "laptops except Apple" → category: ["Laptops"], excludeBrand: ["Apple"], searchQuery: ""
+              - "phones under $500 no Samsung" → category: ["Phones"], excludeBrand: ["Samsung"], priceMax: 500, searchQuery: ""
             `,
 					},
 					{

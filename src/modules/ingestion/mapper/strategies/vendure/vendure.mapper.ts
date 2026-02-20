@@ -33,12 +33,11 @@ export class VendureMapper implements ProductMapper {
 
 		// 3. Construct the Unified Object
 		const storefrontUrl = this.configService.get<string>("STOREFRONT_URL", "");
-		const strippedDescription = this.stripHtml(vendureProduct.description || "");
 		const product: UnifiedProduct = {
 			externalId: String(vendureProduct.id),
-			url: vendureProduct.slug ? `${storefrontUrl}/product/${vendureProduct.slug}` : "",
+			url: vendureProduct.slug ? `${storefrontUrl}/products/${vendureProduct.slug}` : "",
 			title: vendureProduct.name || "Untitled Product",
-			description: strippedDescription,
+			description: this.stripHtml(vendureProduct.description || ""),
 			brand: brand !== "Generic" ? brand : undefined,
 			category: category !== "Uncategorized" ? category : undefined,
 
@@ -49,13 +48,7 @@ export class VendureMapper implements ProductMapper {
 			mainImage: mainImage,
 			attributes: attributes,
 			variants: this.extractVariants(vendureProduct, priceData.amount),
-			keywords: this.generateKeywords(
-				vendureProduct.name,
-				strippedDescription,
-				category,
-				brand,
-				vendureProduct.customFields?.tags ?? ""
-			),
+			keywords: this.generateKeywords(vendureProduct.name, vendureProduct.description, category, brand),
 		};
 
 		// 4. Zod Validation
@@ -76,8 +69,7 @@ export class VendureMapper implements ProductMapper {
 		// Vendure logic: Products have variants. Usually we take the first variant's price as the "From" price.
 		if (Array.isArray(product.variants) && product.variants.length > 0) {
 			const firstVariant = product.variants[0];
-			rawAmount =
-				firstVariant.priceWithTaxInLocalCurrency ?? firstVariant.priceWithTax ?? firstVariant.price ?? 0;
+			rawAmount = firstVariant.priceWithTax ?? firstVariant.price ?? 0;
 			rawCurrency = firstVariant.currencyCode || "UAH";
 		}
 
@@ -95,19 +87,16 @@ export class VendureMapper implements ProductMapper {
 
 		return product.variants.map((v) => {
 			// Calculate variant price (cents -> float)
-			const variantPrice = (v.priceWithTaxInLocalCurrency ?? v.priceWithTax ?? v.price ?? 0) / 100;
+			const variantPrice = (v.priceWithTax ?? v.price ?? 0) / 100;
 
 			// Determine if variant is available
 			// Handles "IN_STOCK" string or numeric stockLevel
-			// When stockLevel is absent (new schema), assume available
 			const isAvailable =
-				v.stockLevel == null ||
 				v.stockLevel === "IN_STOCK" ||
 				v.stockLevel === "LOW_STOCK" ||
 				(typeof v.stockLevel === "number" && v.stockLevel > 0);
 
 			return {
-				id: v.id ? String(v.id) : undefined,
 				sku: v.sku || "UNKNOWN",
 				title: v.name || product.name,
 				available: isAvailable,
@@ -116,7 +105,7 @@ export class VendureMapper implements ProductMapper {
 					variantPrice !== basePrice
 						? {
 								amount: variantPrice,
-								currency: this.normalizeCurrency(v.currencyCode ?? "UAH"),
+								currency: this.normalizeCurrency(v.currencyCode),
 							}
 						: null,
 			};
@@ -164,14 +153,6 @@ export class VendureMapper implements ProductMapper {
 					}
 				});
 			}
-		}
-
-		// Source 3: Custom Fields (rating, discountType, discountValue)
-		const cf = product.customFields;
-		if (cf) {
-			if (cf.rating != null) attributes.push({ name: "Rating", value: cf.rating });
-			if (cf.discountType != null) attributes.push({ name: "Discount Type", value: cf.discountType });
-			if (cf.discountValue != null) attributes.push({ name: "Discount Value", value: cf.discountValue });
 		}
 
 		return attributes;
@@ -266,8 +247,8 @@ export class VendureMapper implements ProductMapper {
 		return html.replace(/<[^>]*>?/gm, "").trim();
 	}
 
-	private generateKeywords(title: string, description: string, category: string, brand: string, tags = ""): string[] {
-		const rawText = `${title} ${category} ${brand} ${tags} ${description}`.toLowerCase();
+	private generateKeywords(title: string, description: string, category: string, brand: string): string[] {
+		const rawText = `${title} ${category} ${brand} ${description}`.toLowerCase();
 		const words = rawText
 			.replace(/[^\w\s]/gi, "")
 			.split(/\s+/)

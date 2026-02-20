@@ -30,7 +30,6 @@ const AttributeSchema = z.object({
  * Represents a specific SKU (Stock Keeping Unit).
  */
 const VariantSchema = z.object({
-	id: z.string().optional().describe("External ID of the variant from the source system (e.g. Vendure variant ID)"),
 	sku: z.string().describe("Unique identifier for this specific variant"),
 	title: z.string().describe('Variant specific name (e.g. "Red / XL")'),
 	price: PriceSchema.nullable().describe("Override price if different from base price"),
